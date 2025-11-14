@@ -304,11 +304,11 @@ def main():
     parser.add_argument("--train_npz", type=str, default="clothing1m.npz", help="Path to clothing1m.npz")
     parser.add_argument("--test_npz", type=str, default="clothing10k_test.npz", help="Path to clothing10k_test.npz")
     parser.add_argument("--meta_fraction", type=float, default=0.15, help="Meta-val fraction of training set")
-    parser.add_argument("--batch_size", type=int, default=256)
+    parser.add_argument("--batch_size", type=int, default=32)
     parser.add_argument("--val_batch_size", type=int, default=None)
-    parser.add_argument("--epochs", type=int, default=10)
-    parser.add_argument("--lr", type=float, default=1e-3)
-    parser.add_argument("--weight_decay", type=float, default=1e-4)
+    parser.add_argument("--epochs", type=int, default=140)
+    parser.add_argument("--lr", type=float, default=2e-3)
+    parser.add_argument("--weight_decay", type=float, default=1e-3)
     parser.add_argument("--model_name", type=str, default="resnet50", help="Model name (default: resnet50)")
     parser.add_argument("--pretrained", type=lambda x: str(x).lower() in ["1","true","yes","y","t"], default=True)
     parser.add_argument("--loss", type=str, default="CE", choices=["CE", "FL"])
@@ -462,6 +462,14 @@ def main():
         ep_acc = 0.0
         ep_count = 0
         tbar = tqdm(train_loader, desc=f"Epoch {epoch}/{args.epochs}", dynamic_ncols=True)
+
+        lr = args.lr
+        if epoch >= 40:
+            lr /= 10
+        if epoch >= 80:
+            lr /= 10
+        for param_group in optimizer.param_groups:
+            param_group['lr'] = lr
 
         for i, (images, labels) in enumerate(tbar):
             images = images.to(device, non_blocking=True)
