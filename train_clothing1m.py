@@ -396,7 +396,7 @@ def main():
     # ---------------------------
     model = build_model(args.model_name, num_classes=num_classes, pretrained=args.pretrained).to(device)
 
-    optimizer = optim.Adam(model.parameters(), lr=args.lr, weight_decay=args.weight_decay)
+    optimizer = optim.AdamW(model.parameters(), lr=args.lr, weight_decay=args.weight_decay)
     scaler = torch.cuda.amp.GradScaler(enabled=(device.type == "cuda" and args.use_amp))
 
     # LiLAW parameters as learnable scalars (updated via meta step)
