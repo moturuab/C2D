@@ -154,6 +154,54 @@ def create_model_reg(net='resnet50', num_class=14):
     model = model.cuda()
     return model
 
+# custom loss function for weighted cross entropy loss
+class WeightedCrossEntropyLoss(nn.CrossEntropyLoss):
+    def __init__(self, reweight=True, alpha=None, beta=None, delta=None, num_classes=2, warmup=0, device=None, model_name=None):
+        super(nn.CrossEntropyLoss, self).__init__()
+        self.reweight = reweight # whether or not to reweight
+        self.alpha = alpha # alpha parameter
+        self.beta = beta # beta parameter
+        self.delta = delta # delta parameter
+        self.warmup = warmup  # number of warmup epochs
+        self.model_name = model_name # name of the model, if needed
+        self.num_classes = num_classes # number of classes
+        self.device = device # cpu or gpu
+        self.sigmoid = nn.Sigmoid()
+
+    @torch.compile
+    def softmax(self, outputs):
+        return (torch.exp(outputs.t()) / torch.sum(torch.exp(outputs), dim=1)).t()
+
+    def encode(self, targets):
+        encoded_targets = torch.zeros(targets.size(0), self.num_classes, device=self.device)
+        encoded_targets.scatter_(1, targets.view(-1, 1).long(), 1).float()
+        return encoded_targets
+
+    def weights(self, correct_outputs, max_outputs):
+        alpha_weights = self.sigmoid(self.alpha*correct_outputs - max_outputs)
+        beta_weights = self.sigmoid(-(self.beta*correct_outputs - max_outputs))
+        delta_weights = torch.exp(-(-(self.delta*correct_outputs - max_outputs))**2/2)
+        weights = alpha_weights + beta_weights + delta_weights
+        return alpha_weights, beta_weights, delta_weights, weights
+
+    def forward(self, outputs, targets, epoch=-1):
+        # softmax of the network logits
+        softmax_outputs = self.softmax(outputs)
+        # one-hot targets
+        encoded_targets = self.encode(targets)
+        loss = - torch.sum(torch.log(softmax_outputs) * (encoded_targets), dim=1)
+        # the correct (observed) outputs
+        correct_outputs = softmax_outputs.gather(1, torch.argmax(encoded_targets, dim=1).unsqueeze(1)).squeeze(1)
+        # the maximum (predicted) outputs
+        max_outputs = softmax_outputs.gather(1, torch.argmax(softmax_outputs, dim=1).unsqueeze(1)).squeeze(1)
+
+        if self.reweight and epoch > self.warmup:
+            alpha_weights, beta_weights, delta_weights, weights = self.weights(correct_outputs, max_outputs)
+            weighted_loss = weights * loss
+            return correct_outputs, max_outputs, alpha_weights, beta_weights, delta_weights, weights, weighted_loss.mean()
+        else:
+            return correct_outputs, max_outputs, None, None, None, None, loss.mean()
+
 
 def main():
     args = parse_args()
@@ -181,7 +229,7 @@ def main():
     optimizer1 = optim.AdamW(net1.parameters(), lr=args.lr, weight_decay=1e-3)
     optimizer2 = optim.AdamW(net2.parameters(), lr=args.lr, weight_decay=1e-3)
 
-    CE = nn.CrossEntropyLoss(reduction='none')
+    CE = WeightedCrossEntropyLoss(reweight=True, alpha=alpha, beta=beta, delta=delta, num_classes=num_classes, warmup=warmup, device=device)
     CEloss = nn.CrossEntropyLoss()
     conf_penalty = NegEntropy()
 
