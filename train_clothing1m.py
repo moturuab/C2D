@@ -317,17 +317,17 @@ def main():
     parser.add_argument("--alpha_init", type=float, default=10.0)
     parser.add_argument("--beta_init", type=float, default=2.0)
     parser.add_argument("--delta_init", type=float, default=6.0)
-    parser.add_argument("--alpha_lr", type=float, default=1e-3)
-    parser.add_argument("--beta_lr", type=float, default=1e-3)
-    parser.add_argument("--delta_lr", type=float, default=1e-3)
-    parser.add_argument("--alpha_wd", type=float, default=0.0)
-    parser.add_argument("--beta_wd", type=float, default=0.0)
-    parser.add_argument("--delta_wd", type=float, default=0.0)
+    parser.add_argument("--alpha_lr", type=float, default=5e-3)
+    parser.add_argument("--beta_lr", type=float, default=5e-3)
+    parser.add_argument("--delta_lr", type=float, default=5e-3)
+    parser.add_argument("--alpha_wd", type=float, default=1e-4)
+    parser.add_argument("--beta_wd", type=float, default=1e-4)
+    parser.add_argument("--delta_wd", type=float, default=1e-4)
     parser.add_argument("--gamma", type=float, default=2.0, help="Focal loss gamma if loss=FL")
     parser.add_argument("--use_amp", type=lambda x: str(x).lower() in ["1","true","yes","y","t"], default=True)
     parser.add_argument("--num_workers", type=int, default=8)
     parser.add_argument("--seed", type=int, default=42)
-    parser.add_argument("--project", type=str, default="clothing1m-lilaw-r50")
+    parser.add_argument("--project", type=str, default="example_difficulty")
     parser.add_argument("--run_name", type=str, default=None)
     parser.add_argument("--output_dir", type=str, default="./outputs")
     parser.add_argument("--save_every", type=int, default=1, help="Save checkpoint every N epochs")
@@ -445,7 +445,7 @@ def main():
                 "resize_to": args.resize_to,
             }
         )
-        wandb.watch(model, log="all", log_freq=250)
+        wandb.watch(model, log="all")
     else:
         wandb_run = None
         print("[INFO] wandb not available; proceeding without logging.")
@@ -564,7 +564,7 @@ def main():
             })
 
         # Save checkpoint(s)
-        if (epoch % args.save_every) == 0:
+        if (epoch % args.save_every) == 0 and False:
             ckpt_path = os.path.join(ckpt_dir, f"epoch_{epoch:03d}.pt")
             torch.save({
                 "epoch": epoch,
