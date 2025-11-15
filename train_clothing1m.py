@@ -68,29 +68,66 @@ def set_seed(seed: int = 42):
 # Dataset for NPZ (+ optional resize)
 # ---------------------------
 
+# ---------------------------
+# Your transforms (unchanged)
+# ---------------------------
+mean = (0.485, 0.456, 0.406)  # (0.6959, 0.6537, 0.6371)
+std = (0.229, 0.224, 0.225)   # (0.3113, 0.3192, 0.3214)
+normalize_tf = transforms.Normalize(mean=mean, std=std)
+
+train_transform = transforms.Compose([
+    transforms.RandomResizedCrop(size=224, scale=(0.2, 1.)),
+    transforms.RandomHorizontalFlip(),
+    transforms.RandomApply([
+        transforms.ColorJitter(0.4, 0.4, 0.4, 0.1)
+    ], p=0.8),
+    transforms.RandomGrayscale(p=0.2),
+    transforms.ToTensor(),
+    normalize_tf,
+])
+
+test_transform = transforms.Compose([
+    transforms.Resize(256),
+    transforms.CenterCrop(224),
+    transforms.ToTensor(),
+    transforms.Normalize(mean, std),
+])
+
+# --------------------------------------
+# Dataset updated to accept a transform
+# --------------------------------------
 class ClothingNPZDataset(Dataset):
     """
     Memory-friendly loader for .npz with arr_0 (images, HWC) and arr_1 (labels).
     Optionally resizes tensors to a target square size using bilinear interpolation.
+
+    If `transform` is provided, it is applied to a PIL image produced from the raw
+    HWC numpy array. In that case, `normalize` and `resize_to` inside the dataset
+    are bypassed for the image (handled by the transform pipeline).
     """
     def __init__(self, npz_path: str, normalize: bool = True, mmap_try: bool = True,
-                 resize_to: int = 0, device: Optional[torch.device] = None):
+                 resize_to: int = 0, device: Optional[torch.device] = None,
+                 transform: Optional[Callable] = None,
+                 target_transform: Optional[Callable] = None):
         self.npz_path = npz_path
         self.normalize = normalize
-        self.device = device  # unused here; tensors are moved in the train loop
+        self.device = device  # tensors moved in the train loop
         self.resize_to = int(resize_to) if resize_to else 0
+        self.transform = transform
+        self.target_transform = target_transform
 
         mmap_mode = 'r' if mmap_try else None
         self.archive = np.load(npz_path, allow_pickle=False, mmap_mode=mmap_mode)
         if 'arr_0' not in self.archive or 'arr_1' not in self.archive:
             raise ValueError(f"{npz_path} must contain 'arr_0' (images) and 'arr_1' (labels).")
 
-        self.images = self.archive['arr_0']  # (N, 64, 64, 3), dtype uint8 or float
+        self.images = self.archive['arr_0']  # (N, H, W, 3), dtype uint8 or float
         self.labels = self.archive['arr_1']  # (N,)
 
         if self.images.ndim != 4 or self.images.shape[-1] != 3:
             raise ValueError(f"Expected images of shape (N, H, W, 3), got {self.images.shape}.")
 
+        # Only used when self.transform is None
         self.registered_mean = torch.tensor([0.485, 0.456, 0.406]).view(3, 1, 1)
         self.registered_std = torch.tensor([0.229, 0.224, 0.225]).view(3, 1, 1)
 
@@ -98,24 +135,40 @@ class ClothingNPZDataset(Dataset):
         return int(self.images.shape[0])
 
     def __getitem__(self, idx: int):
-        img = self.images[idx]
+        img = self.images[idx]  # HWC
         label = int(self.labels[idx])
 
-        if img.dtype != np.float32 and img.dtype != np.float64:
-            img = img.astype(np.float32) / 255.0
+        if self.transform is not None:
+            # Ensure uint8 HWC for PIL conversion
+            if np.issubdtype(img.dtype, np.floating):
+                if img.max() <= 1.0 + 1e-6:
+                    img_np = (img * 255.0).round().astype(np.uint8)
+                else:
+                    img_np = np.clip(img, 0, 255).round().astype(np.uint8)
+            else:
+                img_np = img.astype(np.uint8, copy=False)
+
+            pil_img = Image.fromarray(img_np)  # assumes RGB
+            img_t = self.transform(pil_img)    # e.g., train_transform / transform_test
         else:
-            if img.max() > 1.0:
-                img = img / 255.0
+            # Original tensor path (kept for compatibility)
+            if img.dtype != np.float32 and img.dtype != np.float64:
+                img = img.astype(np.float32) / 255.0
+            else:
+                if img.max() > 1.0:
+                    img = img / 255.0
 
-        img_t = torch.from_numpy(img).permute(2, 0, 1)  # CHW
+            img_t = torch.from_numpy(img).permute(2, 0, 1)  # CHW, float in [0,1]
 
-        if self.normalize:
-            img_t = (img_t - self.registered_mean) / self.registered_std
+            if self.normalize:
+                img_t = (img_t - self.registered_mean) / self.registered_std
 
-        if self.resize_to and (img_t.shape[1] != self.resize_to or img_t.shape[2] != self.resize_to):
-            # Resize CHW tensor
-            img_t = F.interpolate(img_t.unsqueeze(0), size=(self.resize_to, self.resize_to),
-                                  mode='bilinear', align_corners=False).squeeze(0)
+            if self.resize_to and (img_t.shape[1] != self.resize_to or img_t.shape[2] != self.resize_to):
+                img_t = F.interpolate(img_t.unsqueeze(0), size=(self.resize_to, self.resize_to),
+                                      mode='bilinear', align_corners=False).squeeze(0)
+
+        if self.target_transform is not None:
+            label = self.target_transform(label)
 
         return img_t, label
 
@@ -351,9 +404,9 @@ def main():
     # ---------------------------
     print("[INFO] Loading datasets...")
     train_full = ClothingNPZDataset(args.train_npz, normalize=True, mmap_try=True,
-                                    resize_to=args.resize_to, device=device)
+                                    resize_to=args.resize_to, device=device, transform=train_transform)
     test_ds = ClothingNPZDataset(args.test_npz, normalize=True, mmap_try=True,
-                                 resize_to=args.resize_to, device=device)
+                                 resize_to=args.resize_to, device=device, transform=test_transform)
 
     labels_arr = train_full.labels
     num_classes = int(np.max(labels_arr)) + 1
