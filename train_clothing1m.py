@@ -143,13 +143,14 @@ class ClothingNPZDataset(Dataset):
 
         if self.transform is not None:
             # Ensure uint8 HWC for PIL conversion
-            if np.issubdtype(img.dtype, np.floating):
-                if img.max() <= 1.0 + 1e-6:
-                    img_np = (img * 255.0).round().astype(np.uint8)
-                else:
-                    img_np = np.clip(img, 0, 255).round().astype(np.uint8)
-            else:
-                img_np = img.astype(np.uint8, copy=False)
+            #if np.issubdtype(img.dtype, np.floating):
+            #    if img.max() <= 1.0 + 1e-6:
+            #        img_np = (img * 255.0).round().astype(np.uint8)
+            #    else:
+            #        img_np = np.clip(img, 0, 255).round().astype(np.uint8)
+            #else:
+                
+            img_np = img.astype(np.uint8, copy=False)
 
             pil_img = Image.fromarray(img_np)  # assumes RGB
             img_t = self.transform(pil_img)    # e.g., train_transform / transform_test
@@ -369,7 +370,7 @@ def main():
     parser.add_argument("--pretrained", type=lambda x: str(x).lower() in ["1","true","yes","y","t"], default=True)
     parser.add_argument("--loss", type=str, default="CE", choices=["CE", "FL"])
     parser.add_argument("--use_lilaw", type=lambda x: str(x).lower() in ["1","true","yes","y","t"], default=True)
-    parser.add_argument("--warmup_epochs", type=int, default=2, help="Epochs before applying LiLAW updates")
+    parser.add_argument("--warmup_epochs", type=int, default=1, help="Epochs before applying LiLAW updates")
     parser.add_argument("--alpha_init", type=float, default=10.0)
     parser.add_argument("--beta_init", type=float, default=2.0)
     parser.add_argument("--delta_init", type=float, default=6.0)
