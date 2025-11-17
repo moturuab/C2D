@@ -610,6 +610,7 @@ def main():
                 "epochs": args.epochs,
                 "batch_size": args.batch_size,
                 "lr": args.lr,
+                "meta_fraction": args.meta_fraction,
                 "weight_decay": args.weight_decay,
                 "warmup_epochs": args.warmup_epochs,
                 "alpha_init": args.alpha_init,
