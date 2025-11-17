@@ -665,6 +665,8 @@ def main():
             delta.grad = None
 
             model.requires_grad = True
+            for p in model.parameters():
+                p.requires_grad = True
             alpha.requires_grad = False
             beta.requires_grad = False
             delta.requires_grad = False
@@ -685,18 +687,17 @@ def main():
             ep_acc += train_acc * labels.size(0)
             ep_count += labels.size(0)
 
+            for p in model.parameters():
+                p.grad = None
+
+            alpha.grad = None
+            beta.grad = None
+            delta.grad = None
+
+            model.eval()
+
             # META-VALIDATION STEP (update LiLAW scalars per train batch)
             if args.use_lilaw and epoch > args.warmup_epochs:
-
-                for p in model.parameters():
-                    p.grad = None
-
-                alpha.grad = None
-                beta.grad = None
-                delta.grad = None
-
-                model.eval()
-
                 #meta_images, meta_labels = next(meta_iter)
                 for meta_images, meta_labels in meta_loader:
                     meta_images = meta_images.to(device, non_blocking=True)
