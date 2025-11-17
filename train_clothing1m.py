@@ -26,7 +26,7 @@ import math
 import time
 import random
 import argparse
-from typing import Tuple, Optional, Callable
+from typing import Tuple, Optional, Callable, List, Sequence, Iterator, Dict
 
 import numpy as np
 from tqdm import tqdm
@@ -38,7 +38,7 @@ import torch
 import torch.nn as nn
 import torch.nn.functional as F
 import torch.optim as optim
-from torch.utils.data import Dataset, DataLoader, Subset
+from torch.utils.data import Dataset, DataLoader, Subset, Sampler
 
 # Optional deps
 try:
@@ -175,6 +175,112 @@ class ClothingNPZDataset(Dataset):
             label = self.target_transform(label)
 
         return img_t, label
+
+
+class ClassBalancedBatchSampler(Sampler[List[int]]):
+    """
+    Yields `n_batches` batches with class-balanced composition.
+    - If batch_size is divisible by #classes: exact equality per batch.
+    - Otherwise: per-batch counts differ by at most 1. The 'extra' samples are
+      assigned to different classes each batch using a rotating schedule.
+
+    Sampling is with replacement (robust to tiny classes).
+
+    Args:
+        labels: sequence of dataset labels (len == len(dataset))
+        batch_size: size of each mini-batch
+        n_batches: number of mini-batches per epoch
+        seed: optional seed for reproducibility
+        shuffle_within_batch: shuffle indices inside each batch
+        remainder_strategy: 'rotate' (default) or 'random'
+            - 'rotate' fairly rotates which classes get +1 across batches
+            - 'random' picks r classes uniformly at random per batch
+    """
+    def __init__(
+        self,
+        labels: Sequence,
+        batch_size: int,
+        n_batches: int,
+        seed: Optional[int] = None,
+        shuffle_within_batch: bool = True,
+        remainder_strategy: str = "rotate",
+    ):
+        self.labels_np = np.asarray(labels)
+        self.classes = np.sort(np.unique(self.labels_np))
+        self.n_classes = len(self.classes)
+        if self.n_classes < 1:
+            raise ValueError("No classes found in labels.")
+
+        self.batch_size = int(batch_size)
+        self.n_batches = int(n_batches)
+        self.shuffle_within_batch = shuffle_within_batch
+        self.remainder_strategy = remainder_strategy
+        self.seed = seed
+        self._epoch = 0
+
+        # Precompute index lists for each class
+        self.class_to_indices: Dict = {
+            c: np.where(self.labels_np == c)[0] for c in self.classes
+        }
+        for c, idxs in self.class_to_indices.items():
+            if idxs.size == 0:
+                raise ValueError(f"Class {c} has no samples.")
+
+        # Base-per-class and per-batch remainder
+        self.base_per_class = self.batch_size // self.n_classes
+        self.remainder = self.batch_size - self.base_per_class * self.n_classes
+
+        # For 'rotate' strategy we maintain a circular permutation of class ids
+        self._perm = np.arange(self.n_classes)
+
+    def set_epoch(self, epoch: int):
+        """Call at the start of each epoch to alter RNG deterministically."""
+        self._epoch = int(epoch)
+
+    def __len__(self) -> int:
+        return self.n_batches
+
+    def __iter__(self) -> Iterator[List[int]]:
+        rng = np.random.default_rng(None if self.seed is None else self.seed + self._epoch)
+
+        # Prepare rotating order for remainder assignment
+        perm = self._perm.copy()
+        rng.shuffle(perm)
+        rotate_ptr = 0  # start position in the circular permutation
+
+        for _ in range(self.n_batches):
+            batch: List[int] = []
+
+            # 1) Base equal count for every class
+            if self.base_per_class > 0:
+                for c in self.classes:
+                    pool = self.class_to_indices[c]
+                    chosen = rng.choice(pool, size=self.base_per_class, replace=True)
+                    batch.extend(chosen.tolist())
+
+            # 2) Distribute the remainder (+1) to `remainder` classes
+            if self.remainder > 0:
+                if self.remainder_strategy == "rotate":
+                    # take a window of size `remainder` from the circular perm
+                    window_idx = (np.arange(rotate_ptr, rotate_ptr + self.remainder)) % self.n_classes
+                    remainder_class_indices = perm[window_idx]
+                    rotate_ptr = (rotate_ptr + self.remainder) % self.n_classes
+                elif self.remainder_strategy == "random":
+                    remainder_class_indices = rng.choice(self.n_classes, size=self.remainder, replace=False)
+                else:
+                    raise ValueError("remainder_strategy must be 'rotate' or 'random'.")
+
+                for ci in remainder_class_indices:
+                    c = self.classes[int(ci)]
+                    pool = self.class_to_indices[c]
+                    extra = rng.choice(pool, size=1, replace=True)
+                    batch.append(int(extra[0]))
+
+            if self.shuffle_within_batch:
+                rng.shuffle(batch)
+
+            yield batch
+
 
 
 # ---------------------------
@@ -429,18 +535,34 @@ def main():
 
     val_bs = args.val_batch_size if args.val_batch_size is not None else args.batch_size
 
+
+    # Pick a batch size that is divisible by the number of classes
+    num_classes = len(np.unique(train_ds.labels))
+
+    # Build the balanced sampler: 1000 mini-batches per epoch
+    balanced_sampler = BalancedBatchSampler(
+        labels=train_ds.labels,
+        batch_size=args.batch_size,
+        num_batches=1000,
+        seed=42
+    )
+
+    # Use batch_sampler (do NOT also pass batch_size or shuffle)
     train_loader = DataLoader(
-        train_ds, batch_size=args.batch_size, shuffle=True, pin_memory=True,
-        num_workers=args.num_workers, drop_last=True, persistent_workers=(args.num_workers > 0)
+        train_ds,
+        batch_sampler=balanced_sampler,
+        num_workers=args.num_workers,
+        pin_memory=True,
     )
+
     meta_loader = DataLoader(
-        meta_ds, batch_size=val_bs, shuffle=True, pin_memory=True,
-        num_workers=max(1, args.num_workers // 2), drop_last=True, persistent_workers=(args.num_workers > 0)
+        meta_ds, batch_size=val_bs, shuffle=True, num_workers=max(1, args.num_workers // 2), pin_memory=True, drop_last=True, persistent_workers=(args.num_workers > 0)
     )
+
     test_loader = DataLoader(
-        test_ds, batch_size=val_bs, shuffle=False, pin_memory=True,
-        num_workers=max(1, args.num_workers // 2)
+        test_ds, batch_size=val_bs, shuffle=False, num_workers=max(1, args.num_workers // 2), pin_memory=True, drop_last=True
     )
+
 
     def meta_iter_fn():
         while True:
