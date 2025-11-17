@@ -468,7 +468,7 @@ def main():
     parser.add_argument("--test_npz", type=str, default="clothing10k_test.npz", help="Path to clothing10k_test.npz")
     parser.add_argument("--meta_fraction", type=float, default=0.15, help="Meta-val fraction of training set")
     parser.add_argument("--batch_size", type=int, default=32)
-    parser.add_argument("--val_batch_size", type=int, default=512)
+    parser.add_argument("--val_batch_size", type=int, default=None)
     parser.add_argument("--epochs", type=int, default=140)
     parser.add_argument("--lr", type=float, default=2e-3)
     parser.add_argument("--weight_decay", type=float, default=1e-3)
