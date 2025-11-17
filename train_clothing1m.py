@@ -539,7 +539,7 @@ def main():
     balanced_sampler = ClassBalancedBatchSampler(
         labels=labels_arr[train_idx],
         batch_size=args.batch_size,
-        num_batches=1000,
+        n_batches=1000,
         seed=42
     )
 
