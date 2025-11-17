@@ -368,6 +368,11 @@ class WeightedCrossEntropyLoss(nn.Module):
         self.model_name = model_name
         self.sigmoid = nn.Sigmoid()
 
+    @torch.compile
+    def softmax(self, outputs):
+        #maxes = outputs.max(dim=1, keepdim=True).values
+        return (torch.exp((outputs).t()) / torch.sum(torch.exp(outputs), dim=1)).t()
+
     def encode(self, targets):
         encoded_targets = torch.zeros(targets.size(0), self.num_classes, device=targets.device, dtype=torch.float32)
         encoded_targets.scatter_(1, targets.view(-1, 1).long(), 1.0)
@@ -381,9 +386,9 @@ class WeightedCrossEntropyLoss(nn.Module):
         return alpha_weights, beta_weights, delta_weights, weights
 
     def forward(self, outputs, targets, epoch: int = -1):
-        softmax_outputs = F.softmax(outputs, dim=1)
+        softmax_outputs = self.softmax(outputs)
         encoded_targets = self.encode(targets)
-        per_sample_ce = - torch.sum(torch.log(softmax_outputs + 1e-12) * encoded_targets, dim=1)
+        per_sample_ce = - torch.sum(torch.log(softmax_outputs) * encoded_targets, dim=1)
 
         correct_outputs = softmax_outputs.gather(1, torch.argmax(encoded_targets, dim=1).unsqueeze(1)).squeeze(1)
         max_outputs     = softmax_outputs.gather(1, torch.argmax(softmax_outputs, dim=1).unsqueeze(1)).squeeze(1)
@@ -652,10 +657,19 @@ def main():
             param_group['lr'] = lr
 
         for i, (images, labels) in enumerate(tbar):
+            model.train()
             images = images.to(device, non_blocking=True)
             labels = labels.to(device, non_blocking=True, dtype=torch.long)
 
             # TRAIN STEP (update model only)
+            for p in model.parameters():
+                p.grad = None
+
+            alpha.grad = None
+            beta.grad = None
+            delta.grad = None
+
+            model.requires_grad = True
             alpha.requires_grad = False
             beta.requires_grad = False
             delta.requires_grad = False
@@ -678,25 +692,36 @@ def main():
 
             # META-VALIDATION STEP (update LiLAW scalars per train batch)
             if args.use_lilaw and epoch > args.warmup_epochs:
-                alpha.requires_grad = True
-                beta.requires_grad = True
-                delta.requires_grad = True
+
                 for p in model.parameters():
-                    p.requires_grad = False
+                    p.grad = None
+
+                alpha.grad = None
+                beta.grad = None
+                delta.grad = None
+
+                model.eval()
 
                 #meta_images, meta_labels = next(meta_iter)
                 for meta_images, meta_labels in meta_loader:
                     meta_images = meta_images.to(device, non_blocking=True)
                     meta_labels = meta_labels.to(device, non_blocking=True, dtype=torch.long)
 
-                    with torch.no_grad():
-                        meta_logits = model(meta_images)
+                    alpha.requires_grad = True
+                    beta.requires_grad = True
+                    delta.requires_grad = True
+                    model.requires_grad = False
+                    for p in model.parameters():
+                        p.requires_grad = False
+
+                    #with torch.no_grad():
+                    meta_logits = model(meta_images)
 
                     _, _, _, _, _, _, meta_loss = criterion(meta_logits, meta_labels, epoch=epoch)
 
-                    if alpha.grad is not None: alpha.grad.zero_()
-                    if beta.grad is not None:  beta.grad.zero_()
-                    if delta.grad is not None: delta.grad.zero_()
+                    #if alpha.grad is not None: alpha.grad.zero_()
+                    #if beta.grad is not None:  beta.grad.zero_()
+                    #if delta.grad is not None: delta.grad.zero_()
 
                     meta_loss.backward()
 
@@ -713,7 +738,7 @@ def main():
                     delta.grad = None
 
                     for p in model.parameters():
-                        p.requires_grad = True
+                        p.grad = None
 
                     break
 
