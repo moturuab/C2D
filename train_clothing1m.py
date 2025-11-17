@@ -368,11 +368,6 @@ class WeightedCrossEntropyLoss(nn.Module):
         self.model_name = model_name
         self.sigmoid = nn.Sigmoid()
 
-    @torch.compile
-    def softmax(self, outputs):
-        #maxes = outputs.max(dim=1, keepdim=True).values
-        return (torch.exp((outputs).t()) / torch.sum(torch.exp(outputs), dim=1)).t()
-
     def encode(self, targets):
         encoded_targets = torch.zeros(targets.size(0), self.num_classes, device=targets.device, dtype=torch.float32)
         encoded_targets.scatter_(1, targets.view(-1, 1).long(), 1.0)
@@ -386,7 +381,7 @@ class WeightedCrossEntropyLoss(nn.Module):
         return alpha_weights, beta_weights, delta_weights, weights
 
     def forward(self, outputs, targets, epoch: int = -1):
-        softmax_outputs = self.softmax(outputs)
+        softmax_outputs = F.softmax(outputs, dim=1)
         encoded_targets = self.encode(targets)
         per_sample_ce = - torch.sum(torch.log(softmax_outputs) * encoded_targets, dim=1)
 
