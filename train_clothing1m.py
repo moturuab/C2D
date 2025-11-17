@@ -468,7 +468,7 @@ def main():
     parser.add_argument("--test_npz", type=str, default="clothing10k_test.npz", help="Path to clothing10k_test.npz")
     parser.add_argument("--meta_fraction", type=float, default=0.15, help="Meta-val fraction of training set")
     parser.add_argument("--batch_size", type=int, default=32)
-    parser.add_argument("--val_batch_size", type=int, default=None)
+    parser.add_argument("--val_batch_size", type=int, default=1000)
     parser.add_argument("--epochs", type=int, default=140)
     parser.add_argument("--lr", type=float, default=2e-3)
     parser.add_argument("--weight_decay", type=float, default=1e-3)
@@ -684,35 +684,38 @@ def main():
                 for p in model.parameters():
                     p.requires_grad = False
 
-                meta_images, meta_labels = next(meta_iter)
-                meta_images = meta_images.to(device, non_blocking=True)
-                meta_labels = meta_labels.to(device, non_blocking=True, dtype=torch.long)
+                #meta_images, meta_labels = next(meta_iter)
+                for meta_images, meta_labels in meta_loader:
+                    meta_images = meta_images.to(device, non_blocking=True)
+                    meta_labels = meta_labels.to(device, non_blocking=True, dtype=torch.long)
 
-                with torch.no_grad():
-                    meta_logits = model(meta_images)
+                    with torch.no_grad():
+                        meta_logits = model(meta_images)
 
-                _, _, _, _, _, _, meta_loss = criterion(meta_logits, meta_labels, epoch=epoch)
+                    _, _, _, _, _, _, meta_loss = criterion(meta_logits, meta_labels, epoch=epoch)
 
-                if alpha.grad is not None: alpha.grad.zero_()
-                if beta.grad is not None:  beta.grad.zero_()
-                if delta.grad is not None: delta.grad.zero_()
+                    if alpha.grad is not None: alpha.grad.zero_()
+                    if beta.grad is not None:  beta.grad.zero_()
+                    if delta.grad is not None: delta.grad.zero_()
 
-                meta_loss.backward()
+                    meta_loss.backward()
 
-                with torch.no_grad():
-                    alpha -= args.alpha_lr * (alpha.grad + args.alpha_wd * alpha)
-                    beta  -= args.beta_lr  * (beta.grad  + args.beta_wd  * beta)
-                    delta -= args.delta_lr * (delta.grad + args.delta_wd * delta)
+                    with torch.no_grad():
+                        alpha -= args.alpha_lr * (alpha.grad + args.alpha_wd * alpha)
+                        beta  -= args.beta_lr  * (beta.grad  + args.beta_wd  * beta)
+                        delta -= args.delta_lr * (delta.grad + args.delta_wd * delta)
 
-                    alpha.data.clamp_(min=1.0)
-                    delta.data.clamp_(min=beta.detach().item())
+                        alpha.data.clamp_(min=1.0)
+                        delta.data.clamp_(min=beta.detach().item())
 
-                alpha.grad = None
-                beta.grad = None
-                delta.grad = None
+                    alpha.grad = None
+                    beta.grad = None
+                    delta.grad = None
 
-                for p in model.parameters():
-                    p.requires_grad = True
+                    for p in model.parameters():
+                        p.requires_grad = True
+
+                    break
 
             # Logging per step
             if HAS_WANDB:
