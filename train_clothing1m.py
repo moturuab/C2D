@@ -536,7 +536,7 @@ def main():
     val_bs = args.val_batch_size if args.val_batch_size is not None else args.batch_size
 
     # Build the balanced sampler: 1000 mini-batches per epoch
-    balanced_sampler = BalancedBatchSampler(
+    balanced_sampler = ClassBalancedBatchSampler(
         labels=train_ds.labels,
         batch_size=args.batch_size,
         num_batches=1000,
