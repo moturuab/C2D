@@ -537,7 +537,7 @@ def main():
 
     # Build the balanced sampler: 1000 mini-batches per epoch
     balanced_sampler = ClassBalancedBatchSampler(
-        labels=train_ds.labels,
+        labels=labels_arr[train_idx],
         batch_size=args.batch_size,
         num_batches=1000,
         seed=42
@@ -571,13 +571,17 @@ def main():
     # ---------------------------
     model = build_model(args.model_name, num_classes=num_classes, pretrained=args.pretrained).to(device)
 
-    optimizer = optim.AdamW(model.parameters(), lr=args.lr, weight_decay=args.weight_decay)
     scaler = torch.cuda.amp.GradScaler(enabled=(device.type == "cuda" and args.use_amp))
 
     # LiLAW parameters as learnable scalars (updated via meta step)
     alpha = nn.Parameter(torch.tensor(args.alpha_init, dtype=torch.float32, device=device), requires_grad=True)
     beta  = nn.Parameter(torch.tensor(args.beta_init, dtype=torch.float32, device=device), requires_grad=True)
     delta = nn.Parameter(torch.tensor(args.delta_init, dtype=torch.float32, device=device), requires_grad=True)
+
+    if args.use_lilaw:
+        optimizer = optim.AdamW(list(model.parameters()) + list([alpha, beta, delta]), lr=args.lr, weight_decay=args.weight_decay)
+    else:
+        optimizer = optim.AdamW(model.parameters(), lr=args.lr, weight_decay=args.weight_decay)
 
     # Criterion
     if args.loss.upper() == "CE":
