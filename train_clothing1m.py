@@ -690,7 +690,7 @@ def main():
     # Load datasets and split
     # ---------------------------
     print("[INFO] Loading datasets...")
-    loader = clothing_dataloader(root='/home/moturuab/projects/aip-agoldenb/moturuab/', 
+    loader = clothing_dataloader(root='/home/moturuab/projects/aip-agoldenb/moturuab/sclothing1M', 
         batch_size=args.batch_size, num_workers=5, num_batches=args.num_batches)
 
     #labels_arr = train_full.labels
