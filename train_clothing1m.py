@@ -323,6 +323,22 @@ class clothing_dataset(Dataset):
         if self.mode == "labeled":
             self.train_imgs = paths[:num_samples]
             print("%s data has a size of %d" % (self.mode, len(self.train_imgs)))
+
+        if mode == 'all':
+            train_imgs = []
+            with open('%s/noisy_train_key_list.txt' % self.root, 'r') as f:
+                lines = f.read().splitlines()
+                for l in lines:
+                    img_path = '%s/' % self.root + l[7:]
+                    train_imgs.append(img_path)
+            self.train_imgs = sample_traning_set(train_imgs, self.noisy_labels, num_class, num_samples)
+            random.shuffle(self.train_imgs)
+            if add_clean:
+                inter_imgs = []
+                for impath in self.clean_labels:
+                    if impath in self.noisy_labels:
+                        inter_imgs.append(impath)
+                self.train_imgs += inter_imgs  # add images which have a clean label too to be able to calculate metrics
         
         elif mode == 'test':
             self.test_imgs = []
@@ -355,14 +371,14 @@ class clothing_dataset(Dataset):
         #    img = self.transform(image)
         #    img2 = self.transform(image)
         #    return img
-        #elif self.mode == 'all':
-        #    img_path = self.train_imgs[index]
-        #    target = self.noisy_labels[img_path] if not self.clean_all else self.clean_labels[img_path]
-        #    clean_target = self.clean_labels.get(img_path, -1)
-        #    image = Image.open(img_path).convert('RGB')
-        #    img1 = self.transform(image)
-        #    img2 = self.transform(image)
-        #    return img1, img2, target, img_path, clean_target
+        elif self.mode == 'all':
+            img_path = self.train_imgs[index]
+            target = self.noisy_labels[img_path] if not self.clean_all else self.clean_labels[img_path]
+            clean_target = self.clean_labels.get(img_path, -1)
+            image = Image.open(img_path).convert('RGB')
+            img = self.transform(image)
+            #img2 = self.transform(image)
+            return img, target, img_path, clean_target
         elif self.mode == 'test':
             img_path = self.test_imgs[index]
             target = self.clean_labels[img_path]
@@ -384,6 +400,23 @@ class clothing_dataset(Dataset):
         else:
             return len(self.train_imgs)
 
+def eval_train(epoch, model, eval_loader, criterion, num_batches, batch_size, stats_log):
+    model.eval()
+    num_samples = num_batches * batch_size + 37497  # add for intersection
+    #losses = torch.zeros(num_samples)
+    paths = []
+    #n = 0
+    with torch.no_grad():
+        for batch_idx, (inputs, targets, path, clean_target) in enumerate(eval_loader):
+            inputs, targets = inputs.cuda(), targets.cuda()
+            #outputs = model(inputs)
+            #loss = criterion(outputs, targets)
+            for b in range(inputs.size(0)):
+                #losses[n] = loss[b]
+                paths.append(path[b])
+                n += 1
+            
+    return paths
 
 class clothing_dataloader():
     def __init__(self, root, batch_size, num_batches, num_workers, log=None, stronger_aug=False):
@@ -440,6 +473,16 @@ class clothing_dataloader():
                 num_workers=self.num_workers)
             
             return labeled_loader
+        elif mode == 'eval_train':
+            eval_dataset = clothing_dataset(self.root, transform=self.transform_test, mode='all',
+                                            num_samples=self.num_batches * self.batch_size, add_clean=True,
+                                            log=self.log)
+            eval_loader = DataLoader(
+                dataset=eval_dataset,
+                batch_size=self.batch_size,
+                shuffle=False,
+                num_workers=self.num_workers)
+            return paths
         elif mode == 'test':
             test_dataset = clothing_dataset(self.root, transform=self.transform_test, mode='test', log=self.log)
             test_loader = DataLoader(
@@ -696,8 +739,8 @@ def main():
     #labels_arr = train_full.labels
     #num_classes = int(np.max(labels_arr)) + 1
     #print(f"[INFO] Detected {num_classes} classes.")
-
-    train_loader = loader.run('train')
+    paths = loader.run('eval_train')
+    train_loader = loader.run('train', paths)
     val_loader = loader.run('val')
     test_loader = loader.run('test')
 
