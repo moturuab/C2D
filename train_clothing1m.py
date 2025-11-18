@@ -39,6 +39,7 @@ import torch.nn as nn
 import torch.nn.functional as F
 import torch.optim as optim
 from torch.utils.data import Dataset, DataLoader, Subset, Sampler
+from 
 
 # Optional deps
 try:
@@ -281,6 +282,182 @@ class ClassBalancedBatchSampler(Sampler[List[int]]):
 
             yield batch
 
+def sample_traning_set(train_imgs, labels, num_class, num_samples):
+    random.shuffle(train_imgs)
+    class_num = torch.zeros(num_class)
+    sampled_train_imgs = []
+    for impath in train_imgs:
+        label = labels[impath]
+        if class_num[label] < (num_samples / num_class):
+            sampled_train_imgs.append(impath)
+            class_num[label] += 1
+        if len(sampled_train_imgs) >= num_samples:
+            break
+    return sampled_train_imgs
+
+class clothing_dataset(Dataset):
+    def __init__(self, root, transform, mode, num_samples=0, pred=[], probability=[], paths=[], num_class=14,
+                 add_clean=False, log=None, clean_all=False):
+
+        self.root = root
+        self.transform = transform
+        self.mode = mode
+        self.noisy_labels = {}
+        self.clean_labels = {}
+        self.val_labels = {}
+        self.clean_all = clean_all
+
+        with open('%s/noisy_label_kv.txt' % self.root, 'r') as f:
+            lines = f.read().splitlines()
+            for l in lines:
+                entry = l.split()
+                img_path = '%s/' % self.root + entry[0][7:]
+                self.noisy_labels[img_path] = int(entry[1])
+        with open('%s/clean_label_kv.txt' % self.root, 'r') as f:
+            lines = f.read().splitlines()
+            for l in lines:
+                entry = l.split()
+                img_path = '%s/' % self.root + entry[0][7:]
+                self.clean_labels[img_path] = int(entry[1])
+        # Clean size: 72409. Noisy size: 1037497. Clean/noisy intersection: 37497 (24637/5395/7465)
+
+        if self.mode == "labeled":
+            train_imgs = paths[:num_samples]
+            print("%s data has a size of %d" % (self.mode, len(self.train_imgs)))
+        
+        elif mode == 'test':
+            self.test_imgs = []
+            with open('%s/clean_test_key_list.txt' % self.root, 'r') as f:
+                lines = f.read().splitlines()
+                for l in lines:
+                    img_path = '%s/' % self.root + l[7:]
+                    self.test_imgs.append(img_path)
+
+        elif mode == 'val':
+            self.val_imgs = []
+            with open('%s/clean_val_key_list.txt' % self.root, 'r') as f:
+                lines = f.read().splitlines()
+                for l in lines:
+                    img_path = '%s/' % self.root + l[7:]
+                    self.val_imgs.append(img_path)
+
+    def __getitem__(self, index):
+        if self.mode == 'labeled':
+            img_path = self.train_imgs[index]
+            target = self.noisy_labels[img_path]
+            #prob = self.probability[index]
+            image = Image.open(img_path).convert('RGB')
+            img = self.transform(image)
+            #img2 = self.transform(image)
+            return img, target #, 0, prob
+        #elif self.mode == 'unlabeled':
+        #    img_path = self.train_imgs[index]
+        #    image = Image.open(img_path).convert('RGB')
+        #    img = self.transform(image)
+        #    img2 = self.transform(image)
+        #    return img
+        #elif self.mode == 'all':
+        #    img_path = self.train_imgs[index]
+        #    target = self.noisy_labels[img_path] if not self.clean_all else self.clean_labels[img_path]
+        #    clean_target = self.clean_labels.get(img_path, -1)
+        #    image = Image.open(img_path).convert('RGB')
+        #    img1 = self.transform(image)
+        #    img2 = self.transform(image)
+        #    return img1, img2, target, img_path, clean_target
+        elif self.mode == 'test':
+            img_path = self.test_imgs[index]
+            target = self.clean_labels[img_path]
+            image = Image.open(img_path).convert('RGB')
+            img = self.transform(image)
+            return img, target
+        elif self.mode == 'val':
+            img_path = self.val_imgs[index]
+            target = self.clean_labels[img_path] #self.noisy_labels[img_path]
+            image = Image.open(img_path).convert('RGB')
+            img = self.transform(image)
+            return img, target
+
+    def __len__(self):
+        if self.mode == 'test':
+            return len(self.test_imgs)
+        if self.mode == 'val':
+            return len(self.val_imgs)
+        else:
+            return len(self.train_imgs)
+
+
+class clothing_dataloader():
+    def __init__(self, root, batch_size, num_batches, num_workers, log=None, stronger_aug=False):
+        self.batch_size = batch_size
+        self.num_workers = num_workers
+        self.num_batches = num_batches
+        self.root = root
+        self.log = log
+
+        mean = (0.485, 0.456, 0.406)  # (0.6959, 0.6537, 0.6371),
+        std = (0.229, 0.224, 0.225)  # (0.3113, 0.3192, 0.3214)
+        normalize = transforms.Normalize(mean=mean, std=std)
+
+        train_transform = transforms.Compose([
+            transforms.RandomResizedCrop(size=224, scale=(0.2, 1.)),
+            transforms.RandomHorizontalFlip(),
+            transforms.RandomApply([
+                transforms.ColorJitter(0.4, 0.4, 0.4, 0.1)
+            ], p=0.8),
+            transforms.RandomGrayscale(p=0.2),
+            transforms.ToTensor(),
+            normalize,
+        ])
+        self.transform_warmup = transforms.Compose([
+            transforms.Resize(256),
+            transforms.RandomCrop(224),
+            transforms.RandomHorizontalFlip(),
+            transforms.ColorJitter(brightness=0.4, contrast=0.4, saturation=0.4, hue=0.4),
+            transforms.RandomAffine(degrees=15.,
+                                    translate=(0.1, 0.1),
+                                    scale=(2. / 3, 3. / 2),
+                                    shear=(-0.1, 0.1, -0.1, 0.1)),
+            transforms.ToTensor(),
+            transforms.Normalize(mean, std),
+        ])
+        self.transform_train = train_transform
+        self.transform_test = transforms.Compose([
+            transforms.Resize(256),
+            transforms.CenterCrop(224),
+            transforms.ToTensor(),
+            transforms.Normalize(mean, std),
+        ])
+        self.transform_warmup = self.transform_warmup if stronger_aug else self.transform_train
+        self.warmup_samples = self.num_batches * self.batch_size * 4 if stronger_aug else self.num_batches * self.batch_size * 2
+
+    def run(self, mode, pred=[], prob=[], paths=[]):
+        if mode == 'train':
+            labeled_dataset = clothing_dataset(self.root, transform=self.transform_train, mode='labeled', paths=paths,
+                                               num_samples=self.num_batches * self.batch_size, log=self.log)
+            labeled_loader = DataLoader(
+                dataset=labeled_dataset,
+                batch_size=self.batch_size,
+                shuffle=True,
+                num_workers=self.num_workers)
+            
+            return labeled_loader
+        elif mode == 'test':
+            test_dataset = clothing_dataset(self.root, transform=self.transform_test, mode='test', log=self.log)
+            test_loader = DataLoader(
+                dataset=test_dataset,
+                batch_size=self.batch_size,
+                shuffle=False,
+                num_workers=self.num_workers)
+            return test_loader
+        elif mode == 'val':
+            val_dataset = clothing_dataset(self.root, transform=self.transform_test, mode='val', log=self.log)
+            val_loader = DataLoader(
+                dataset=val_dataset,
+                batch_size=self.batch_size,
+                shuffle=True,
+                num_workers=self.num_workers)
+            return val_loader
+
 
 
 # ---------------------------
@@ -513,58 +690,22 @@ def main():
     # Load datasets and split
     # ---------------------------
     print("[INFO] Loading datasets...")
-    train_full = ClothingNPZDataset(args.train_npz, normalize=True, mmap_try=True,
-                                    resize_to=args.resize_to, device=device, transform=train_transform)
-    test_ds = ClothingNPZDataset(args.test_npz, normalize=True, mmap_try=True,
-                                 resize_to=args.resize_to, device=device, transform=test_transform)
+    loader = dataloader.clothing_dataloader(root=args.data_path, batch_size=args.batch_size, num_workers=5,
+                                            num_batches=args.num_batches)
 
-    labels_arr = train_full.labels
-    num_classes = int(np.max(labels_arr)) + 1
-    print(f"[INFO] Detected {num_classes} classes.")
+    #labels_arr = train_full.labels
+    #num_classes = int(np.max(labels_arr)) + 1
+    #print(f"[INFO] Detected {num_classes} classes.")
 
-    N = len(train_full)
-    meta_size = int(round(args.meta_fraction * N))
-    train_size = N - meta_size
-    indices = np.random.RandomState(args.seed).permutation(N)
-    train_idx = indices[:train_size]
-    meta_idx = indices[train_size:]
-    print(f"[INFO] Train size: {train_size:,} | Meta-val size: {meta_size:,} | Test size: {len(test_ds):,}")
+    train_loader = loader.run('train')
+    val_loader = loader.run('val')
+    test_loader = loader.run('test')
 
-    train_ds = Subset(train_full, train_idx)
-    meta_ds = Subset(train_full, meta_idx)
-
-    val_bs = args.val_batch_size if args.val_batch_size is not None else args.batch_size
-
-    # Build the balanced sampler: 1000 mini-batches per epoch
-    balanced_sampler = ClassBalancedBatchSampler(
-        labels=labels_arr[train_idx],
-        batch_size=args.batch_size,
-        n_batches=1000,
-        seed=42
-    )
-
-    # Use batch_sampler (do NOT also pass batch_size or shuffle)
-    train_loader = DataLoader(
-        train_ds,
-        batch_sampler=balanced_sampler,
-        num_workers=args.num_workers,
-        pin_memory=True,
-    )
-
-    meta_loader = DataLoader(
-        meta_ds, batch_size=val_bs, shuffle=True, num_workers=max(1, args.num_workers // 2), pin_memory=True, drop_last=True, persistent_workers=(args.num_workers > 0)
-    )
-
-    test_loader = DataLoader(
-        test_ds, batch_size=args.batch_size, shuffle=False, num_workers=max(1, args.num_workers // 2), pin_memory=True, drop_last=True
-    )
-
-
-    def meta_iter_fn():
-        while True:
-            for batch in meta_loader:
-                yield batch
-    meta_iter = meta_iter_fn()
+    #def meta_iter_fn():
+    #    while True:
+    #        for batch in meta_loader:
+    #            yield batch
+    #meta_iter = meta_iter_fn()
 
     # ---------------------------
     # Model, optimizer, scaler
@@ -575,7 +716,7 @@ def main():
 
     # LiLAW parameters as learnable scalars (updated via meta step)
     alpha = nn.Parameter(torch.tensor(args.alpha_init, dtype=torch.float32, device=device), requires_grad=True)
-    beta  = nn.Parameter(torch.tensor(args.beta_init, dtype=torch.float32, device=device), requires_grad=True)
+    beta  = nn.Parameter(torch.tensor(args.beta_init,  dtype=torch.float32, device=device), requires_grad=True)
     delta = nn.Parameter(torch.tensor(args.delta_init, dtype=torch.float32, device=device), requires_grad=True)
 
     if args.use_lilaw:
@@ -699,7 +840,7 @@ def main():
             # META-VALIDATION STEP (update LiLAW scalars per train batch)
             if args.use_lilaw and epoch > args.warmup_epochs:
                 #meta_images, meta_labels = next(meta_iter)
-                for meta_images, meta_labels in meta_loader:
+                for meta_images, meta_labels in val_loader:
                     meta_images = meta_images.to(device, non_blocking=True)
                     meta_labels = meta_labels.to(device, non_blocking=True, dtype=torch.long)
 
