@@ -39,7 +39,6 @@ import torch.nn as nn
 import torch.nn.functional as F
 import torch.optim as optim
 from torch.utils.data import Dataset, DataLoader, Subset, Sampler
-from 
 
 # Optional deps
 try:
@@ -645,6 +644,7 @@ def main():
     parser.add_argument("--test_npz", type=str, default="clothing10k_test.npz", help="Path to clothing10k_test.npz")
     parser.add_argument("--meta_fraction", type=float, default=0.15, help="Meta-val fraction of training set")
     parser.add_argument("--batch_size", type=int, default=32)
+    parser.add_argument("--num_batches", type=int, default=1000)
     parser.add_argument("--val_batch_size", type=int, default=None)
     parser.add_argument("--epochs", type=int, default=140)
     parser.add_argument("--lr", type=float, default=2e-3)
@@ -690,8 +690,8 @@ def main():
     # Load datasets and split
     # ---------------------------
     print("[INFO] Loading datasets...")
-    loader = dataloader.clothing_dataloader(root=args.data_path, batch_size=args.batch_size, num_workers=5,
-                                            num_batches=args.num_batches)
+    loader = clothing_dataloader(root='/home/moturuab/projects/aip-agoldenb/moturuab/', 
+        batch_size=args.batch_size, num_workers=5, num_batches=args.num_batches)
 
     #labels_arr = train_full.labels
     #num_classes = int(np.max(labels_arr)) + 1
@@ -750,6 +750,7 @@ def main():
                 "use_lilaw": args.use_lilaw,
                 "epochs": args.epochs,
                 "batch_size": args.batch_size,
+                "num_batches": args.num_batches,
                 "lr": args.lr,
                 "meta_fraction": args.meta_fraction,
                 "weight_decay": args.weight_decay,
