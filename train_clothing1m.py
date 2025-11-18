@@ -466,6 +466,7 @@ class clothing_dataloader():
         if mode == 'train':
             labeled_dataset = clothing_dataset(self.root, transform=self.transform_train, mode='labeled', paths=paths,
                                                num_samples=self.num_batches * self.batch_size, log=self.log)
+            print(len(labeled_dataset))
             labeled_loader = DataLoader(
                 dataset=labeled_dataset,
                 batch_size=self.batch_size,
@@ -741,6 +742,7 @@ def main():
     #print(f"[INFO] Detected {num_classes} classes.")
     eval_loader = loader.run('eval_train')
     paths = eval_train(eval_loader, args.num_batches, args.batch_size)
+    print(len(paths))
     train_loader = loader.run('train', paths)
     val_loader = loader.run('val')
     test_loader = loader.run('test')
