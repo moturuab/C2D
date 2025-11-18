@@ -402,7 +402,7 @@ class clothing_dataset(Dataset):
             return len(self.train_imgs)
 
 def eval_train(eval_loader, num_batches, batch_size):
-    model.eval()
+    #model.eval()
     num_samples = num_batches * batch_size + 37497  # add for intersection
     #losses = torch.zeros(num_samples)
     paths = []
