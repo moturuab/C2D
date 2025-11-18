@@ -324,7 +324,7 @@ class clothing_dataset(Dataset):
             self.train_imgs = paths[:num_samples]
             print("%s data has a size of %d" % (self.mode, len(self.train_imgs)))
 
-        if mode == 'all':
+        elif mode == 'all':
             train_imgs = []
             with open('%s/noisy_train_key_list.txt' % self.root, 'r') as f:
                 lines = f.read().splitlines()
@@ -477,7 +477,7 @@ class clothing_dataloader():
             eval_dataset = clothing_dataset(self.root, transform=self.transform_test, mode='all',
                                             num_samples=self.num_batches * self.batch_size, add_clean=True,
                                             log=self.log)
-            eval_loader = DataLoader(
+            paths = DataLoader(
                 dataset=eval_dataset,
                 batch_size=self.batch_size,
                 shuffle=False,
