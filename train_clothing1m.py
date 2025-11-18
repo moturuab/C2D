@@ -321,7 +321,7 @@ class clothing_dataset(Dataset):
         # Clean size: 72409. Noisy size: 1037497. Clean/noisy intersection: 37497 (24637/5395/7465)
 
         if self.mode == "labeled":
-            train_imgs = paths[:num_samples]
+            self.train_imgs = paths[:num_samples]
             print("%s data has a size of %d" % (self.mode, len(self.train_imgs)))
         
         elif mode == 'test':
