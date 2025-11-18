@@ -738,7 +738,7 @@ def main():
         batch_size=args.batch_size, num_workers=5, num_batches=args.num_batches)
 
     #labels_arr = train_full.labels
-    #num_classes = int(np.max(labels_arr)) + 1
+    num_classes = 14
     #print(f"[INFO] Detected {num_classes} classes.")
     eval_loader = loader.run('eval_train')
     paths = eval_train(eval_loader, args.num_batches, args.batch_size)
