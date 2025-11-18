@@ -305,6 +305,7 @@ class clothing_dataset(Dataset):
         self.clean_labels = {}
         self.val_labels = {}
         self.clean_all = clean_all
+        paths = eval_train()
 
         with open('%s/noisy_label_kv.txt' % self.root, 'r') as f:
             lines = f.read().splitlines()
@@ -400,7 +401,7 @@ class clothing_dataset(Dataset):
         else:
             return len(self.train_imgs)
 
-def eval_train(epoch, model, eval_loader, criterion, num_batches, batch_size, stats_log):
+def eval_train(eval_loader, num_batches, batch_size):
     model.eval()
     num_samples = num_batches * batch_size + 37497  # add for intersection
     #losses = torch.zeros(num_samples)
@@ -477,12 +478,12 @@ class clothing_dataloader():
             eval_dataset = clothing_dataset(self.root, transform=self.transform_test, mode='all',
                                             num_samples=self.num_batches * self.batch_size, add_clean=True,
                                             log=self.log)
-            paths = DataLoader(
+            eval_loader = DataLoader(
                 dataset=eval_dataset,
                 batch_size=self.batch_size,
                 shuffle=False,
                 num_workers=self.num_workers)
-            return paths
+            return eval_loader
         elif mode == 'test':
             test_dataset = clothing_dataset(self.root, transform=self.transform_test, mode='test', log=self.log)
             test_loader = DataLoader(
@@ -739,7 +740,8 @@ def main():
     #labels_arr = train_full.labels
     #num_classes = int(np.max(labels_arr)) + 1
     #print(f"[INFO] Detected {num_classes} classes.")
-    paths = loader.run('eval_train')
+    eval_loader = loader.run('eval_train')
+    paths = eval_train(eval_loader, args.num_batches, args.batch_size)
     train_loader = loader.run('train', paths)
     val_loader = loader.run('val')
     test_loader = loader.run('test')
