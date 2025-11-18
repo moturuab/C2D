@@ -305,7 +305,7 @@ class clothing_dataset(Dataset):
         self.clean_labels = {}
         self.val_labels = {}
         self.clean_all = clean_all
-        paths = eval_train()
+        #paths = eval_train()
 
         with open('%s/noisy_label_kv.txt' % self.root, 'r') as f:
             lines = f.read().splitlines()
