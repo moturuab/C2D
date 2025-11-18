@@ -311,13 +311,13 @@ class clothing_dataset(Dataset):
             lines = f.read().splitlines()
             for l in lines:
                 entry = l.split()
-                img_path = '%s/' % self.root + entry[0][7:]
+                img_path = '%s/' % self.root + 'images/' + entry[0][7:]
                 self.noisy_labels[img_path] = int(entry[1])
         with open('%s/clean_label_kv.txt' % self.root, 'r') as f:
             lines = f.read().splitlines()
             for l in lines:
                 entry = l.split()
-                img_path = '%s/' % self.root + entry[0][7:]
+                img_path = '%s/' % self.root + 'images/' + entry[0][7:]
                 self.clean_labels[img_path] = int(entry[1])
         # Clean size: 72409. Noisy size: 1037497. Clean/noisy intersection: 37497 (24637/5395/7465)
 
@@ -330,7 +330,7 @@ class clothing_dataset(Dataset):
             with open('%s/noisy_train_key_list.txt' % self.root, 'r') as f:
                 lines = f.read().splitlines()
                 for l in lines:
-                    img_path = '%s/' % self.root + l[7:]
+                    img_path = '%s/' % self.root + 'images/' + l[7:]
                     train_imgs.append(img_path)
             self.train_imgs = sample_traning_set(train_imgs, self.noisy_labels, num_class, num_samples)
             random.shuffle(self.train_imgs)
@@ -346,7 +346,7 @@ class clothing_dataset(Dataset):
             with open('%s/clean_test_key_list.txt' % self.root, 'r') as f:
                 lines = f.read().splitlines()
                 for l in lines:
-                    img_path = '%s/' % self.root + l[7:]
+                    img_path = '%s/' % self.root + 'images/' + l[7:]
                     self.test_imgs.append(img_path)
 
         elif mode == 'val':
@@ -354,7 +354,7 @@ class clothing_dataset(Dataset):
             with open('%s/clean_val_key_list.txt' % self.root, 'r') as f:
                 lines = f.read().splitlines()
                 for l in lines:
-                    img_path = '%s/' % self.root + l[7:]
+                    img_path = '%s/' % self.root + 'images/' + l[7:]
                     self.val_imgs.append(img_path)
 
     def __getitem__(self, index):
