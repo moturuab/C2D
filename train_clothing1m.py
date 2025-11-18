@@ -464,6 +464,8 @@ class clothing_dataloader():
 
     def run(self, mode, pred=[], prob=[], paths=[]):
         if mode == 'train':
+            print(len(paths))
+            print(self.num_batches * self.batch_size)
             labeled_dataset = clothing_dataset(self.root, transform=self.transform_train, mode='labeled', paths=paths,
                                                num_samples=self.num_batches * self.batch_size, log=self.log)
             print(len(labeled_dataset))
