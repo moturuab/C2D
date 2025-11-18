@@ -415,7 +415,6 @@ def eval_train(eval_loader, num_batches, batch_size):
             for b in range(inputs.size(0)):
                 #losses[n] = loss[b]
                 paths.append(path[b])
-                n += 1
             
     return paths
 
