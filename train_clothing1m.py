@@ -637,7 +637,7 @@ class WeightedFocalLoss(nn.Module):
     def forward(self, outputs, targets, epoch: int = -1):
         softmax_outputs = F.softmax(outputs, dim=1)
         encoded_targets = self.ce_helper.encode(targets)
-        per_sample_ce = - torch.sum(torch.log(softmax_outputs + 1e-12) * encoded_targets, dim=1)
+        per_sample_ce = - torch.sum(torch.log(softmax_outputs) * encoded_targets, dim=1)
         focal = (1.0 - torch.exp(-per_sample_ce)).pow(self.gamma) * per_sample_ce
 
         correct_outputs = softmax_outputs.gather(1, torch.argmax(encoded_targets, dim=1).unsqueeze(1)).squeeze(1)
@@ -831,9 +831,11 @@ def main():
         tbar = tqdm(train_loader, desc=f"Epoch {epoch}/{args.epochs}", dynamic_ncols=True)
 
         lr = args.lr
-        if epoch >= 40:
+        if epoch >= 15:
             lr /= 10
-        if epoch >= 80:
+        if epoch >= 30:
+            lr /= 10
+        if epoch >= 45:
             lr /= 10
         for param_group in optimizer.param_groups:
             param_group['lr'] = lr
