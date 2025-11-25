@@ -379,7 +379,7 @@ class clothing_dataset(Dataset):
             image = Image.open(img_path).convert('RGB')
             img = self.transform(image)
             #img2 = self.transform(image)
-            return img, target, img_path, clean_target
+            return img, target #, img_path, clean_target
         elif self.mode == 'test':
             img_path = self.test_imgs[index]
             target = self.clean_labels[img_path]
