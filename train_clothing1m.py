@@ -408,7 +408,7 @@ def eval_train(eval_loader, num_batches, batch_size):
     paths = []
     #n = 0
     with torch.no_grad():
-        for batch_idx, (inputs, targets, path, clean_target) in enumerate(eval_loader):
+        for batch_idx, (inputs, targets) in enumerate(eval_loader): # , path, clean_target) in enumerate(eval_loader):
             inputs, targets = inputs.cuda(), targets.cuda()
             #outputs = model(inputs)
             #loss = criterion(outputs, targets)
