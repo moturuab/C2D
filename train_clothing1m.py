@@ -376,6 +376,8 @@ class clothing_dataset(Dataset):
             img_path = self.train_imgs[index]
             target = self.noisy_labels[img_path] if not self.clean_all else self.clean_labels[img_path]
             clean_target = self.clean_labels.get(img_path, -1)
+            if clean_target != -1:
+                target = clean_target
             image = Image.open(img_path).convert('RGB')
             img = self.transform(image)
             #img2 = self.transform(image)
@@ -464,7 +466,7 @@ class clothing_dataloader():
 
     def run(self, mode, pred=[], prob=[], paths=[]):
         if mode == 'train':
-            labeled_dataset = clothing_dataset(self.root, transform=self.transform_train, mode='all', #paths=paths, add_clean=True,
+            labeled_dataset = clothing_dataset(self.root, transform=self.transform_train, mode='all', add_clean=True, #paths=paths, 
                                                num_samples=self.num_batches * self.batch_size, log=self.log)
             
             labeled_loader = DataLoader(
@@ -833,10 +835,10 @@ def main():
         tbar = tqdm(train_loader, desc=f"Epoch {epoch}/{args.epochs}", dynamic_ncols=True)
 
         lr = args.lr
-        if epoch >= 40:
+        if epoch >= 5:
             lr /= 10
-        if epoch >= 80:
-            lr /= 10
+        #if epoch >= 10:
+        #    lr /= 10
         for param_group in optimizer.param_groups:
             param_group['lr'] = lr
 
