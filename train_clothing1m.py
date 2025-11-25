@@ -836,7 +836,7 @@ def main():
 
         lr = args.lr
         if epoch >= 5:
-            lr /= 10
+            lr /= 100
         #if epoch >= 10:
         #    lr /= 10
         for param_group in optimizer.param_groups:
