@@ -414,7 +414,7 @@ def eval_train(eval_loader, num_batches, batch_size):
             #loss = criterion(outputs, targets)
             for b in range(inputs.size(0)):
                 #losses[n] = loss[b]
-                paths.append(path[b])
+                paths.append('') #path[b])
             
     return paths
 
@@ -740,9 +740,9 @@ def main():
     #labels_arr = train_full.labels
     num_classes = 14
     #print(f"[INFO] Detected {num_classes} classes.")
-    eval_loader = loader.run('eval_train')
-    paths = eval_train(eval_loader, args.num_batches, args.batch_size)
-    train_loader = loader.run('train', paths=paths)
+    #eval_loader = loader.run('eval_train')
+    #paths = eval_train(eval_loader, args.num_batches, args.batch_size)
+    train_loader = loader.run('train') #, paths=paths)
     val_loader = loader.run('val')
     test_loader = loader.run('test')
 
