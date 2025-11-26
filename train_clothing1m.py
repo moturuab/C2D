@@ -390,7 +390,7 @@ class clothing_dataset(Dataset):
             return img, target
         elif self.mode == 'val':
             img_path = self.val_imgs[index]
-            target = self.clean_labels[img_path]
+            target = self.clean_labels[img_path] #self.noisy_labels[img_path]
             image = Image.open(img_path).convert('RGB')
             img = self.transform(image)
             return img, target
@@ -837,8 +837,6 @@ def main():
         lr = args.lr
         if epoch >= 5:
             lr /= 10
-        #if epoch >= 40:
-        #    lr /= 10
         #if epoch >= 10:
         #    lr /= 10
         for param_group in optimizer.param_groups:
@@ -900,12 +898,11 @@ def main():
                     beta.requires_grad = True
                     delta.requires_grad = True
                     model.requires_grad = False
-                    #for p in model.parameters():
-                    #    p.requires_grad = False
+                    for p in model.parameters():
+                        p.requires_grad = False
 
                     #with torch.no_grad():
-                    with torch.cuda.amp.autocast(enabled=(device.type == "cuda" and args.use_amp)):
-                        meta_logits = model(meta_images)
+                    meta_logits = model(meta_images)
 
                     _, _, _, _, _, _, meta_loss = criterion(meta_logits, meta_labels, epoch=epoch)
 
