@@ -893,7 +893,6 @@ def main():
             if args.use_lilaw and epoch > args.warmup_epochs:
                 #meta_images, meta_labels = next(meta_iter)
                 for meta_images, meta_labels in val_loader:
-                    print(1)
                     meta_images = meta_images.to(device, non_blocking=True)
                     meta_labels = meta_labels.to(device, non_blocking=True, dtype=torch.long)
 
