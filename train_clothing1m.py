@@ -893,6 +893,7 @@ def main():
             if args.use_lilaw and epoch > args.warmup_epochs:
                 #meta_images, meta_labels = next(meta_iter)
                 for meta_images, meta_labels in val_loader:
+                    print(1)
                     meta_images = meta_images.to(device, non_blocking=True)
                     meta_labels = meta_labels.to(device, non_blocking=True, dtype=torch.long)
 
@@ -900,8 +901,8 @@ def main():
                     beta.requires_grad = True
                     delta.requires_grad = True
                     model.requires_grad = False
-                    for p in model.parameters():
-                        p.requires_grad = False
+                    #for p in model.parameters():
+                    #    p.requires_grad = False
 
                     #with torch.no_grad():
                     with torch.cuda.amp.autocast(enabled=(device.type == "cuda" and args.use_amp)):
