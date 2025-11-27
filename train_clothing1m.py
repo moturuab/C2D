@@ -376,8 +376,8 @@ class clothing_dataset(Dataset):
             img_path = self.train_imgs[index]
             target = self.noisy_labels[img_path] if not self.clean_all else self.clean_labels[img_path]
             clean_target = self.clean_labels.get(img_path, -1)
-            if clean_target != -1:
-                target = clean_target
+            #if clean_target != -1:
+            #    target = clean_target
             image = Image.open(img_path).convert('RGB')
             img = self.transform(image)
             #img2 = self.transform(image)
@@ -466,7 +466,7 @@ class clothing_dataloader():
 
     def run(self, mode, pred=[], prob=[], paths=[]):
         if mode == 'train':
-            labeled_dataset = clothing_dataset(self.root, transform=self.transform_train, mode='all', add_clean=True, #paths=paths, 
+            labeled_dataset = clothing_dataset(self.root, transform=self.transform_train, mode='all', add_clean=False, #paths=paths, 
                                                num_samples=self.num_batches * self.batch_size, log=self.log)
             
             labeled_loader = DataLoader(
@@ -478,7 +478,7 @@ class clothing_dataloader():
             return labeled_loader
         elif mode == 'eval_train':
             eval_dataset = clothing_dataset(self.root, transform=self.transform_test, mode='all',
-                                            num_samples=self.num_batches * self.batch_size, add_clean=True,
+                                            num_samples=self.num_batches * self.batch_size, add_clean=False,
                                             log=self.log)
             eval_loader = DataLoader(
                 dataset=eval_dataset,
@@ -837,8 +837,8 @@ def main():
         lr = args.lr
         if epoch >= 5:
             lr /= 10
-        #if epoch >= 10:
-        #    lr /= 10
+        if epoch >= 70:
+            lr /= 10
         for param_group in optimizer.param_groups:
             param_group['lr'] = lr
 
