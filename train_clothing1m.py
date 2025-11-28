@@ -617,7 +617,7 @@ class WeightedCrossEntropyLoss(nn.Module):
             alpha_w, beta_w, delta_w, weights = self._weights(correct_outputs, max_outputs)
             # after computing (and normalizing) `weights`
             # fraction of *lowest* weights to drop
-            frac = 0.3
+            frac = 0.5
             B = weights.size(0)
             k = int(B * frac)
 
@@ -631,7 +631,7 @@ class WeightedCrossEntropyLoss(nn.Module):
                 per_sample_ce = per_sample_ce[mask]
                 # everything else (correct_outputs, etc.) can be masked too if you log them
 
-            weighted_loss = weights * per_sample_ce
+            weighted_loss = per_sample_ce
             return correct_outputs.detach(), max_outputs.detach(), alpha_w.detach(), beta_w.detach(), delta_w.detach(), weights.detach(), weighted_loss.mean()
         else:
             return correct_outputs.detach(), max_outputs.detach(), None, None, None, None, per_sample_ce.mean()
