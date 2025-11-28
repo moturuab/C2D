@@ -628,6 +628,8 @@ class WeightedCrossEntropyLoss(nn.Module):
 
                 mask = weights < thresh
                 weights = weights[mask]
+                m = nn.Sigmoid()
+                weights = m(100*weights)
                 per_sample_ce = per_sample_ce[mask]
                 # everything else (correct_outputs, etc.) can be masked too if you log them
 
