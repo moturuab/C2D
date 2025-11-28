@@ -856,8 +856,8 @@ def main():
         tbar = tqdm(train_loader, desc=f"Epoch {epoch}/{args.epochs}", dynamic_ncols=True)
 
         lr = args.lr
-        if epoch >= 20:
-            lr /= 10
+        #if epoch >= 20:
+        #    lr /= 10
         #if epoch >= 20:
         #    lr /= 10
         #if epoch >= 30:
