@@ -601,7 +601,7 @@ class WeightedCrossEntropyLoss(nn.Module):
         delta_weights = torch.exp(- (-(self.delta * correct_outputs - max_outputs)) ** 2 / 2)
 
         weights = alpha_weights + beta_weights + delta_weights
-        weights = weights / (weights.mean() + 1e-8)
+        #weights = weights / (weights.mean() + 1e-8)
 
         return alpha_weights, beta_weights, delta_weights, weights
 
