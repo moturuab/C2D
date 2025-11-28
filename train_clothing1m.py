@@ -626,7 +626,7 @@ class WeightedCrossEntropyLoss(nn.Module):
                 sorted_weights, idx = torch.sort(alpha_w)
                 thresh = sorted_weights[k - 1]
 
-                mask = weights > thresh
+                mask = alpha_w > thresh
                 weights = weights[mask]
                 per_sample_ce = per_sample_ce[mask]
                 # everything else (correct_outputs, etc.) can be masked too if you log them
