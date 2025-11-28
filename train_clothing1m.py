@@ -627,11 +627,11 @@ class WeightedCrossEntropyLoss(nn.Module):
                 thresh = sorted_weights[k - 1]
 
                 mask = alpha_w > thresh
-                weights = weights[mask]
+                alpha_w = alpha_w[mask]
                 per_sample_ce = per_sample_ce[mask]
                 # everything else (correct_outputs, etc.) can be masked too if you log them
 
-            weighted_loss = per_sample_ce
+            weighted_loss = alpha_w * per_sample_ce
             return correct_outputs.detach(), max_outputs.detach(), alpha_w.detach(), beta_w.detach(), delta_w.detach(), weights.detach(), weighted_loss.mean()
         else:
             return correct_outputs.detach(), max_outputs.detach(), None, None, None, None, per_sample_ce.mean()
