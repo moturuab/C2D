@@ -623,10 +623,10 @@ class WeightedCrossEntropyLoss(nn.Module):
 
             if k > 0:
                 # find threshold to drop lowest-k weights
-                sorted_weights, idx = torch.sort(weights)
+                sorted_weights, idx = torch.sort(alpha_w)
                 thresh = sorted_weights[k - 1]
 
-                mask = weights < thresh
+                mask = alpha_w < thresh
                 weights = weights[mask]
                 m = nn.Sigmoid()
                 weights = m(100*weights)
