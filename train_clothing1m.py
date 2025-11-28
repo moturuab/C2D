@@ -602,6 +602,7 @@ class WeightedCrossEntropyLoss(nn.Module):
 
         weights = alpha_weights + beta_weights + delta_weights
         weights = weights / (weights.mean() + 1e-8)
+
         return alpha_weights, beta_weights, delta_weights, weights
 
     def forward(self, outputs, targets, epoch: int = -1):
@@ -614,6 +615,22 @@ class WeightedCrossEntropyLoss(nn.Module):
 
         if self.reweight and epoch > self.warmup:
             alpha_w, beta_w, delta_w, weights = self._weights(correct_outputs, max_outputs)
+            # after computing (and normalizing) `weights`
+            # fraction of *lowest* weights to drop
+            frac = 0.2
+            B = weights.size(0)
+            k = int(B * frac)
+
+            if k > 0:
+                # find threshold to drop lowest-k weights
+                sorted_weights, idx = torch.sort(weights)
+                thresh = sorted_weights[k - 1]
+
+                mask = weights > thresh
+                weights = weights[mask]
+                per_sample_ce = per_sample_ce[mask]
+                # everything else (correct_outputs, etc.) can be masked too if you log them
+
             weighted_loss = weights * per_sample_ce
             return correct_outputs.detach(), max_outputs.detach(), alpha_w.detach(), beta_w.detach(), delta_w.detach(), weights.detach(), weighted_loss.mean()
         else:
