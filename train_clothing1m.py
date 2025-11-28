@@ -769,11 +769,11 @@ def main():
     delta = nn.Parameter(torch.tensor(args.delta_init, dtype=torch.float32, device=device), requires_grad=True)
 
     if args.use_lilaw:
-        #optimizer = optim.AdamW(list(model.parameters()) + list([alpha, beta, delta]), lr=args.lr, weight_decay=args.weight_decay)
-        optimizer = optim.SGD(list(model.parameters()) + list([alpha, beta, delta]), lr=args.lr, weight_decay=args.weight_decay, momentum=0.9)
+        optimizer = optim.AdamW(list(model.parameters()) + list([alpha, beta, delta]), lr=args.lr, weight_decay=args.weight_decay)
+        #optimizer = optim.SGD(list(model.parameters()) + list([alpha, beta, delta]), lr=args.lr, weight_decay=args.weight_decay, momentum=0.9)
     else:
-        #optimizer = optim.AdamW(model.parameters(), lr=args.lr, weight_decay=args.weight_decay)
-        optimizer = optim.SGD(model.parameters(), lr=args.lr, weight_decay=args.weight_decay, momentum=0.9)
+        optimizer = optim.AdamW(model.parameters(), lr=args.lr, weight_decay=args.weight_decay)
+        #optimizer = optim.SGD(model.parameters(), lr=args.lr, weight_decay=args.weight_decay, momentum=0.9)
 
     # Criterion
     if args.loss.upper() == "CE":
