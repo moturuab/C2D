@@ -617,13 +617,13 @@ class WeightedCrossEntropyLoss(nn.Module):
             alpha_w, beta_w, delta_w, weights = self._weights(correct_outputs, max_outputs)
             # after computing (and normalizing) `weights`
             # fraction of *lowest* weights to drop
-            frac = 0.5
+            frac = 0.4
             B = weights.size(0)
             k = int(B * frac)
 
             if k > 0:
                 # find threshold to drop lowest-k weights
-                sorted_weights, idx = torch.sort(weights)
+                sorted_weights, idx = torch.sort(alpha_w)
                 thresh = sorted_weights[k - 1]
 
                 mask = weights > thresh
