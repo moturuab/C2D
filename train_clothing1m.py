@@ -617,7 +617,7 @@ class WeightedCrossEntropyLoss(nn.Module):
             alpha_w, beta_w, delta_w, weights = self._weights(correct_outputs, max_outputs)
             # after computing (and normalizing) `weights`
             # fraction of *lowest* weights to drop
-            frac = 0.5
+            frac = 0.2
             B = weights.size(0)
             k = int(B * frac)
 
@@ -626,7 +626,7 @@ class WeightedCrossEntropyLoss(nn.Module):
                 sorted_weights, idx = torch.sort(alpha_w)
                 thresh = sorted_weights[k - 1]
 
-                mask = alpha_w > thresh
+                mask = alpha_w < thresh
                 weights = weights[mask]
                 m = nn.Sigmoid()
                 #weights = m(100*weights)
