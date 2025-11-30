@@ -617,7 +617,7 @@ class WeightedCrossEntropyLoss(nn.Module):
             alpha_w, beta_w, delta_w, weights = self._weights(correct_outputs, max_outputs)
             # after computing (and normalizing) `weights`
             # fraction of *lowest* weights to drop
-            frac = 0.5
+            frac = 0.0
             B = weights.size(0)
             k = int(B * frac)
 
