@@ -857,8 +857,8 @@ def main():
         lr = args.lr
         if epoch >= 10:
             lr /= 10
-        #if epoch >= 20:
-        #    lr /= 10
+        if epoch >= 20:
+            lr /= 2
         #if epoch >= 30:
         #    lr /= 10
 
