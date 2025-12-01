@@ -626,7 +626,7 @@ class WeightedCrossEntropyLoss(nn.Module):
                 sorted_weights, idx = torch.sort(alpha_w)
                 thresh = sorted_weights[B-k]
 
-                mask = alpha_w > thresh
+                mask = alpha_w < thresh
                 print(mask)
                 print(np.sum(mask))
                 weights = weights[mask]
