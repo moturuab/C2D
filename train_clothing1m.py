@@ -627,6 +627,7 @@ class WeightedCrossEntropyLoss(nn.Module):
                 thresh = sorted_weights[B-k]
 
                 mask = alpha_w > thresh
+                print(mask)
                 weights = weights[mask]
                 m = nn.Sigmoid()
                 #weights = m(100*weights)
