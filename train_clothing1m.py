@@ -622,22 +622,22 @@ class WeightedCrossEntropyLoss(nn.Module):
 
         if self.reweight and epoch > self.warmup and epoch <= self.warmup + 2:
             alpha_w, beta_w, delta_w, weights = self._weights(correct_outputs, max_outputs)
-        #    # after computing (and normalizing) `weights`
-        #    # fraction of *lowest* weights to drop
-        #    frac = 0.8
-        #    B = weights.size(0)
-        #    k = int(B * frac)
-        #
-        #    if k > 0:
-        #        # find threshold to drop lowest-k weights
-        #        sorted_weights, idx = torch.sort(alpha_w)
-        #        thresh = sorted_weights[B-k]
-        #
-        #        mask = alpha_w < thresh
-        #        weights = weights[mask]
-        #        #weights = m(100*weights)
-        #        per_sample_ce = per_sample_ce[mask]
-        #        # everything else (correct_outputs, etc.) can be masked too if you log them
+            # after computing (and normalizing) `weights`
+            # fraction of *lowest* weights to drop
+            frac = 0.5
+            B = weights.size(0)
+            k = int(B * frac)
+        
+            if k > 0:
+                # find threshold to drop lowest-k weights
+                sorted_weights, idx = torch.sort(alpha_w)
+                thresh = sorted_weights[B-k]
+        
+                mask = alpha_w < thresh
+                weights = weights[mask]
+                #weights = m(100*weights)
+                per_sample_ce = per_sample_ce[mask]
+                # everything else (correct_outputs, etc.) can be masked too if you log them
 
             weighted_loss = weights * per_sample_ce
             return correct_outputs.detach(), max_outputs.detach(), alpha_w.detach(), beta_w.detach(), delta_w.detach(), weights.detach(), weighted_loss.mean()
@@ -862,7 +862,7 @@ def main():
         # ----------------------------------------------------
         # ONE-TIME: after warmup + 5, restrict to top-10% alpha per class
         # ----------------------------------------------------
-        if (not selected_top_subset) and (epoch == args.warmup_epochs + 2) and args.use_lilaw:
+        if (not selected_top_subset) and (epoch == args.warmup_epochs + 5) and args.use_lilaw:
             print("[INFO] Selecting top 10% high-alpha samples per class...")
 
             # Make the dataset return indices
@@ -901,7 +901,7 @@ def main():
                 idx_c = np.where(labels_all == c)[0]
                 if len(idx_c) == 0:
                     continue
-                k = max(1, int(math.floor(0.50 * len(idx_c))))
+                k = max(1, int(math.floor(0.40 * len(idx_c))))
                 # sort in descending order of alpha
                 sorted_c = idx_c[np.argsort(-alpha_scores[idx_c])]
                 selected_indices.append(sorted_c[:k])
@@ -1034,7 +1034,7 @@ def main():
             model.eval()
 
             # META-VALIDATION STEP (update LiLAW scalars per train batch)
-            if args.use_lilaw and epoch > args.warmup_epochs and epoch <= args.warmup_epochs + 2 and i == 0:
+            if args.use_lilaw and epoch > args.warmup_epochs and epoch <= args.warmup_epochs + 5 and i == 0:
                 #meta_images, meta_labels = next(meta_iter)
                 for meta_images, meta_labels in val_loader:
                     meta_images = meta_images.to(device, non_blocking=True)
