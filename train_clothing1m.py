@@ -296,7 +296,7 @@ def sample_traning_set(train_imgs, labels, num_class, num_samples):
 
 class clothing_dataset(Dataset):
     def __init__(self, root, transform, mode, num_samples=0, pred=[], probability=[], paths=[], num_class=14,
-                 add_clean=False, log=None, clean_all=False):
+                 add_clean=False, log=None, clean_all=False, return_index=False):
 
         self.root = root
         self.transform = transform
@@ -305,6 +305,7 @@ class clothing_dataset(Dataset):
         self.clean_labels = {}
         self.val_labels = {}
         self.clean_all = clean_all
+        self.return_index = return_index
         #paths = eval_train()
 
         with open('%s/noisy_label_kv.txt' % self.root, 'r') as f:
@@ -365,7 +366,10 @@ class clothing_dataset(Dataset):
             image = Image.open(img_path).convert('RGB')
             img = self.transform(image)
             #img2 = self.transform(image)
-            return img, target #, 0, prob
+            if self.return_index:
+                return img, target, index
+            else:
+                return img, target #, 0, prob
         #elif self.mode == 'unlabeled':
         #    img_path = self.train_imgs[index]
         #    image = Image.open(img_path).convert('RGB')
@@ -381,7 +385,10 @@ class clothing_dataset(Dataset):
             image = Image.open(img_path).convert('RGB')
             img = self.transform(image)
             #img2 = self.transform(image)
-            return img, target #, img_path, clean_target
+            if self.return_index:
+                return img, target, index
+            else:
+                return img, target #, img_path, clean_target
         elif self.mode == 'test':
             img_path = self.test_imgs[index]
             target = self.clean_labels[img_path]
@@ -615,22 +622,22 @@ class WeightedCrossEntropyLoss(nn.Module):
 
         if self.reweight and epoch > self.warmup:
             alpha_w, beta_w, delta_w, weights = self._weights(correct_outputs, max_outputs)
-            # after computing (and normalizing) `weights`
-            # fraction of *lowest* weights to drop
-            frac = 0.8
-            B = weights.size(0)
-            k = int(B * frac)
-
-            if k > 0:
-                # find threshold to drop lowest-k weights
-                sorted_weights, idx = torch.sort(alpha_w)
-                thresh = sorted_weights[B-k]
-
-                mask = alpha_w < thresh
-                weights = weights[mask]
-                #weights = m(100*weights)
-                per_sample_ce = per_sample_ce[mask]
-                # everything else (correct_outputs, etc.) can be masked too if you log them
+        #    # after computing (and normalizing) `weights`
+        #    # fraction of *lowest* weights to drop
+        #    frac = 0.8
+        #    B = weights.size(0)
+        #    k = int(B * frac)
+        #
+        #    if k > 0:
+        #        # find threshold to drop lowest-k weights
+        #        sorted_weights, idx = torch.sort(alpha_w)
+        #        thresh = sorted_weights[B-k]
+        #
+        #        mask = alpha_w < thresh
+        #        weights = weights[mask]
+        #        #weights = m(100*weights)
+        #        per_sample_ce = per_sample_ce[mask]
+        #        # everything else (correct_outputs, etc.) can be masked too if you log them
 
             weighted_loss = weights * per_sample_ce
             return correct_outputs.detach(), max_outputs.detach(), alpha_w.detach(), beta_w.detach(), delta_w.detach(), weights.detach(), weighted_loss.mean()
@@ -768,6 +775,9 @@ def main():
     val_loader = loader.run('val')
     test_loader = loader.run('test')
 
+    train_dataset = train_loader.dataset
+    selected_top_subset = False
+
     #def meta_iter_fn():
     #    while True:
     #        for batch in meta_loader:
@@ -848,6 +858,79 @@ def main():
     best_test_acc = 0.0
 
     for epoch in range(1, args.epochs + 1):
+
+        # ----------------------------------------------------
+        # ONE-TIME: after warmup, restrict to top-10% alpha per class
+        # ----------------------------------------------------
+        if (not selected_top_subset) and (epoch == args.warmup_epochs + 1) and args.use_lilaw:
+            print("[INFO] Selecting top 10% high-alpha samples per class...")
+
+            # Make the dataset return indices
+            if hasattr(train_dataset, "return_index"):
+                train_dataset.return_index = True
+
+            # Build a deterministic loader over the current training subset
+            selection_loader = DataLoader(
+                train_dataset,
+                batch_size=args.batch_size,
+                shuffle=False,
+                num_workers=args.num_workers,
+            )
+
+            n_samples = len(train_dataset)
+            alpha_scores = np.zeros(n_samples, dtype=np.float32)
+            labels_all = np.zeros(n_samples, dtype=np.int64)
+
+            model.eval()
+            with torch.no_grad():
+                for images, labels, idxs in tqdm(selection_loader, desc="Computing alpha weights", dynamic_ncols=True):
+                    images = images.to(device, non_blocking=True)
+                    labels = labels.to(device, non_blocking=True, dtype=torch.long)
+
+                    logits = model(images)
+                    # Use epoch > warmup so LiLAW actually computes weights
+                    _, _, alpha_w, _, _, _, _ = criterion(logits, labels, epoch=args.warmup_epochs + 1)
+
+                    idxs_np = idxs.numpy()
+                    alpha_scores[idxs_np] = alpha_w.cpu().numpy()
+                    labels_all[idxs_np] = labels.cpu().numpy()
+
+            # Select top 30% alpha per class (out of 14 classes)
+            selected_indices = []
+            for c in range(num_classes):
+                idx_c = np.where(labels_all == c)[0]
+                if len(idx_c) == 0:
+                    continue
+                k = max(1, int(math.floor(0.30 * len(idx_c))))
+                # sort in descending order of alpha
+                sorted_c = idx_c[np.argsort(-alpha_scores[idx_c])]
+                selected_indices.append(sorted_c[:k])
+
+            selected_indices = np.concatenate(selected_indices)
+            print(f"[INFO] Selected {len(selected_indices)} / {n_samples} samples "
+                  f"(~{100.0 * len(selected_indices) / max(1, n_samples):.2f}%).")
+
+            # Restore normal behavior (no index in training loop)
+            if hasattr(train_dataset, "return_index"):
+                train_dataset.return_index = False
+
+            # Wrap the chosen subset and rebuild the train_loader
+            top_dataset = torch.utils.data.Subset(train_dataset, selected_indices.tolist())
+            train_loader = DataLoader(
+                top_dataset,
+                batch_size=args.batch_size,
+                shuffle=True,
+                num_workers=args.num_workers,
+            )
+
+            selected_top_subset = True
+            del alpha_scores, labels_all, selection_loader
+            torch.cuda.empty_cache()
+            print("[INFO] Switched training to top-10%-per-class subset.")
+
+        # ----------------------------------------------------
+        # Normal epoch training (now using possibly filtered train_loader)
+        # ----------------------------------------------------
         model.train()
         ep_loss = 0.0
         ep_acc = 0.0
@@ -855,10 +938,10 @@ def main():
         tbar = tqdm(train_loader, desc=f"Epoch {epoch}/{args.epochs}", dynamic_ncols=True)
 
         lr = args.lr
-        if epoch >= 10:
-            lr /= 10
-        if epoch >= 20:
-            lr /= 2
+        #if epoch >= 10:
+        #    lr /= 10
+        #if epoch >= 20:
+        #    lr /= 2
         #if epoch >= 30:
         #    lr /= 10
 
