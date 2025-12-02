@@ -994,7 +994,7 @@ def main():
             model.eval()
 
             # META-VALIDATION STEP (update LiLAW scalars per train batch)
-            if args.use_lilaw and epoch > args.warmup_epochs and i == 0:
+            if args.use_lilaw and epoch > args.warmup_epochs and epoch <= args.warmup_epochs + 2 and i == 0:
                 #meta_images, meta_labels = next(meta_iter)
                 for meta_images, meta_labels in val_loader:
                     meta_images = meta_images.to(device, non_blocking=True)
