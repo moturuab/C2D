@@ -860,9 +860,9 @@ def main():
     for epoch in range(1, args.epochs + 1):
 
         # ----------------------------------------------------
-        # ONE-TIME: after warmup, restrict to top-10% alpha per class
+        # ONE-TIME: after warmup + 5, restrict to top-10% alpha per class
         # ----------------------------------------------------
-        if (not selected_top_subset) and (epoch == args.warmup_epochs + 1) and args.use_lilaw:
+        if (not selected_top_subset) and (epoch == args.warmup_epochs + 5) and args.use_lilaw:
             print("[INFO] Selecting top 10% high-alpha samples per class...")
 
             # Make the dataset return indices
@@ -895,13 +895,13 @@ def main():
                     alpha_scores[idxs_np] = alpha_w.cpu().numpy()
                     labels_all[idxs_np] = labels.cpu().numpy()
 
-            # Select top 30% alpha per class (out of 14 classes)
+            # Select top 10% alpha per class (out of 14 classes)
             selected_indices = []
             for c in range(num_classes):
                 idx_c = np.where(labels_all == c)[0]
                 if len(idx_c) == 0:
                     continue
-                k = max(1, int(math.floor(0.30 * len(idx_c))))
+                k = max(1, int(math.floor(0.10 * len(idx_c))))
                 # sort in descending order of alpha
                 sorted_c = idx_c[np.argsort(-alpha_scores[idx_c])]
                 selected_indices.append(sorted_c[:k])
