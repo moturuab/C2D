@@ -862,7 +862,7 @@ def main():
         # ----------------------------------------------------
         # ONE-TIME: after warmup + 5, restrict to top-10% alpha per class
         # ----------------------------------------------------
-        if (not selected_top_subset) and (epoch == args.warmup_epochs + 5) and args.use_lilaw:
+        if (not selected_top_subset) and (epoch == args.warmup_epochs + 2) and args.use_lilaw:
             print("[INFO] Selecting top 10% high-alpha samples per class...")
 
             # Make the dataset return indices
