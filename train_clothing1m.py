@@ -928,6 +928,46 @@ def main():
             torch.cuda.empty_cache()
             print("[INFO] Switched training to top-10%-per-class subset.")
 
+            # --------------------------------------------------------
+            # (2) REINITIALIZE MODEL + OPTIMIZER + SCALER HERE
+            #     (after using the old model to compute alpha weights)
+            # --------------------------------------------------------
+            print("[INFO] Reinitializing model for training on top-10% subset...")
+
+            model = build_model(args.model_name, num_classes=num_classes,
+                                pretrained=args.pretrained).to(device)
+
+            # reset LiLAW parameters (or keep them if you prefer)
+            alpha.data.fill_(args.alpha_init)
+            beta.data.fill_(args.beta_init)
+            delta.data.fill_(args.delta_init)
+
+            if args.use_lilaw:
+                optimizer = optim.AdamW(
+                    list(model.parameters()) + [alpha, beta, delta],
+                    lr=args.lr,
+                    weight_decay=args.weight_decay,
+                )
+            else:
+                optimizer = optim.AdamW(
+                    model.parameters(),
+                    lr=args.lr,
+                    weight_decay=args.weight_decay,
+                )
+
+            scaler = torch.cuda.amp.GradScaler(
+                enabled=(device.type == "cuda" and args.use_amp)
+            )
+
+            # ---------------------------
+            # wandb (optional)
+            # ---------------------------
+            if HAS_WANDB:
+                wandb.watch(model, log="all")
+            else:
+                wandb_run = None
+                print("[INFO] wandb not available; proceeding without logging.")
+
         # ----------------------------------------------------
         # Normal epoch training (now using possibly filtered train_loader)
         # ----------------------------------------------------
