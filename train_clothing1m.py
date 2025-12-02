@@ -620,7 +620,7 @@ class WeightedCrossEntropyLoss(nn.Module):
         correct_outputs = softmax_outputs.gather(1, torch.argmax(encoded_targets, dim=1).unsqueeze(1)).squeeze(1)
         max_outputs     = softmax_outputs.gather(1, torch.argmax(softmax_outputs, dim=1).unsqueeze(1)).squeeze(1)
 
-        if self.reweight and epoch > self.warmup:
+        if self.reweight and epoch > self.warmup and epoch <= self.warmup + 2:
             alpha_w, beta_w, delta_w, weights = self._weights(correct_outputs, max_outputs)
         #    # after computing (and normalizing) `weights`
         #    # fraction of *lowest* weights to drop
