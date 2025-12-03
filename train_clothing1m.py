@@ -380,8 +380,8 @@ class clothing_dataset(Dataset):
             img_path = self.train_imgs[index]
             target = self.noisy_labels[img_path] if not self.clean_all else self.clean_labels[img_path]
             clean_target = self.clean_labels.get(img_path, -1)
-            if clean_target != -1:
-                target = clean_target
+            #if clean_target != -1:
+            #    target = clean_target
             image = Image.open(img_path).convert('RGB')
             img = self.transform(image)
             #img2 = self.transform(image)
@@ -485,7 +485,7 @@ class clothing_dataloader():
             return labeled_loader
         elif mode == 'eval_train':
             eval_dataset = clothing_dataset(self.root, transform=self.transform_test, mode='all',
-                                            num_samples=self.num_batches * self.batch_size, add_clean=True,
+                                            num_samples=self.num_batches * self.batch_size, add_clean=False,
                                             log=self.log)
             eval_loader = DataLoader(
                 dataset=eval_dataset,
@@ -889,7 +889,7 @@ def main():
 
                     logits = model(images)
                     # Use epoch > warmup so LiLAW actually computes weights
-                    _, _, alpha_w, _, _, _, _ = criterion(logits, labels, epoch=args.warmup_epochs + 1)
+                    _, _, alpha_w, _, _, _, _ = criterion(logits, labels, epoch=args.warmup_epochs + 5)
 
                     idxs_np = idxs.numpy()
                     alpha_scores[idxs_np] = alpha_w.cpu().numpy()
@@ -901,7 +901,7 @@ def main():
                 idx_c = np.where(labels_all == c)[0]
                 if len(idx_c) == 0:
                     continue
-                k = max(1, int(math.floor(0.20 * len(idx_c))))
+                k = max(1, int(math.floor(0.40 * len(idx_c))))
                 # sort in descending order of alpha
                 sorted_c = idx_c[np.argsort(-alpha_scores[idx_c])]
                 selected_indices.append(sorted_c[:k])
@@ -1034,7 +1034,7 @@ def main():
             model.eval()
 
             # META-VALIDATION STEP (update LiLAW scalars per train batch)
-            if args.use_lilaw and epoch > args.warmup_epochs and epoch <= args.warmup_epochs + 5 + 5 and i == 0:
+            if args.use_lilaw and epoch > args.warmup_epochs and i == 0:
                 #meta_images, meta_labels = next(meta_iter)
                 for meta_images, meta_labels in val_loader:
                     meta_images = meta_images.to(device, non_blocking=True)
