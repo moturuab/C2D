@@ -380,8 +380,8 @@ class clothing_dataset(Dataset):
             img_path = self.train_imgs[index]
             target = self.noisy_labels[img_path] if not self.clean_all else self.clean_labels[img_path]
             clean_target = self.clean_labels.get(img_path, -1)
-            if clean_target != -1:
-                target = clean_target
+            #if clean_target != -1:
+            #    target = clean_target
             image = Image.open(img_path).convert('RGB')
             img = self.transform(image)
             #img2 = self.transform(image)
@@ -473,7 +473,7 @@ class clothing_dataloader():
 
     def run(self, mode, pred=[], prob=[], paths=[]):
         if mode == 'train':
-            labeled_dataset = clothing_dataset(self.root, transform=self.transform_train, mode='all', add_clean=True, #paths=paths, 
+            labeled_dataset = clothing_dataset(self.root, transform=self.transform_train, mode='all', add_clean=False, #paths=paths, 
                                                num_samples=self.num_batches * self.batch_size, log=self.log)
             
             labeled_loader = DataLoader(
@@ -901,7 +901,7 @@ def main():
                 idx_c = np.where(labels_all == c)[0]
                 if len(idx_c) == 0:
                     continue
-                k = max(1, int(math.floor(0.50 * len(idx_c))))
+                k = max(1, int(math.floor(0.40 * len(idx_c))))
                 # sort in descending order of alpha
                 sorted_c = idx_c[np.argsort(-alpha_scores[idx_c])]
                 selected_indices.append(sorted_c[:k])
@@ -928,6 +928,7 @@ def main():
             torch.cuda.empty_cache()
             print("[INFO] Switched training to top-10%-per-class subset.")
 
+            '''
             # --------------------------------------------------------
             # (2) REINITIALIZE MODEL + OPTIMIZER + SCALER HERE
             #     (after using the old model to compute alpha weights)
@@ -967,6 +968,7 @@ def main():
             else:
                 wandb_run = None
                 print("[INFO] wandb not available; proceeding without logging.")
+            '''
 
         # ----------------------------------------------------
         # Normal epoch training (now using possibly filtered train_loader)
