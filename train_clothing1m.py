@@ -628,7 +628,7 @@ class WeightedCrossEntropyLoss(nn.Module):
             B = weights.size(0)
             k = int(B * frac)
         
-            if k > 0 and epoch < self.warmup + 5:
+            if k > 0:
                 # find threshold to drop lowest-k weights
                 sorted_weights, idx = torch.sort(alpha_w)
                 thresh = sorted_weights[B-k]
@@ -862,7 +862,7 @@ def main():
         # ----------------------------------------------------
         # ONE-TIME: after warmup + 5, restrict to top-10% alpha per class
         # ----------------------------------------------------
-        if (not selected_top_subset) and (epoch == args.warmup_epochs + 5) and args.use_lilaw:
+        if (not selected_top_subset) and (epoch == args.warmup_epochs + 2) and args.use_lilaw:
             print("[INFO] Selecting top 10% high-alpha samples per class...")
 
             # Make the dataset return indices
@@ -889,7 +889,7 @@ def main():
 
                     logits = model(images)
                     # Use epoch > warmup so LiLAW actually computes weights
-                    _, _, alpha_w, _, _, _, _ = criterion(logits, labels, epoch=args.warmup_epochs + 5)
+                    _, _, alpha_w, _, _, _, _ = criterion(logits, labels, epoch=epoch)
 
                     idxs_np = idxs.numpy()
                     alpha_scores[idxs_np] = alpha_w.cpu().numpy()
