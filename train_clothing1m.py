@@ -485,7 +485,7 @@ class clothing_dataloader():
             return labeled_loader
         elif mode == 'eval_train':
             eval_dataset = clothing_dataset(self.root, transform=self.transform_test, mode='all',
-                                            num_samples=self.num_batches * self.batch_size, add_clean=False,
+                                            num_samples=self.num_batches * self.batch_size, add_clean=True,
                                             log=self.log)
             eval_loader = DataLoader(
                 dataset=eval_dataset,
@@ -901,7 +901,7 @@ def main():
                 idx_c = np.where(labels_all == c)[0]
                 if len(idx_c) == 0:
                     continue
-                k = max(1, int(math.floor(0.40 * len(idx_c))))
+                k = max(1, int(math.floor(0.20 * len(idx_c))))
                 # sort in descending order of alpha
                 sorted_c = idx_c[np.argsort(-alpha_scores[idx_c])]
                 selected_indices.append(sorted_c[:k])
