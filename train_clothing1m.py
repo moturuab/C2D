@@ -380,8 +380,8 @@ class clothing_dataset(Dataset):
             img_path = self.train_imgs[index]
             target = self.noisy_labels[img_path] if not self.clean_all else self.clean_labels[img_path]
             clean_target = self.clean_labels.get(img_path, -1)
-            if clean_target != -1:
-                target = clean_target
+            #if clean_target != -1:
+            #    target = clean_target
             image = Image.open(img_path).convert('RGB')
             img = self.transform(image)
             #img2 = self.transform(image)
