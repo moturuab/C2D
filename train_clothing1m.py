@@ -620,11 +620,11 @@ class WeightedCrossEntropyLoss(nn.Module):
         correct_outputs = softmax_outputs.gather(1, torch.argmax(encoded_targets, dim=1).unsqueeze(1)).squeeze(1)
         max_outputs     = softmax_outputs.gather(1, torch.argmax(softmax_outputs, dim=1).unsqueeze(1)).squeeze(1)
 
-        if self.reweight and epoch > self.warmup:
+        if self.reweight and epoch > self.warmup and epoch <= self.warmup + 2:
             alpha_w, beta_w, delta_w, weights = self._weights(correct_outputs, max_outputs)
             # after computing (and normalizing) `weights`
             # fraction of *lowest* weights to drop
-            frac = 0.5
+            frac = 0.0
             B = weights.size(0)
             k = int(B * frac)
         
@@ -901,7 +901,7 @@ def main():
                 idx_c = np.where(labels_all == c)[0]
                 if len(idx_c) == 0:
                     continue
-                k = max(1, int(math.floor(0.40 * len(idx_c))))
+                k = max(1, int(math.floor(0.50 * len(idx_c))))
                 # sort in descending order of alpha
                 sorted_c = idx_c[np.argsort(-alpha_scores[idx_c])]
                 selected_indices.append(sorted_c[:k])
