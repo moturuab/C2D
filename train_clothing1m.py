@@ -620,7 +620,7 @@ class WeightedCrossEntropyLoss(nn.Module):
         correct_outputs = softmax_outputs.gather(1, torch.argmax(encoded_targets, dim=1).unsqueeze(1)).squeeze(1)
         max_outputs     = softmax_outputs.gather(1, torch.argmax(softmax_outputs, dim=1).unsqueeze(1)).squeeze(1)
 
-        if self.reweight and epoch > self.warmup and epoch <= self.warmup + 2:
+        if self.reweight and epoch > self.warmup and epoch <= self.warmup + 10:
             alpha_w, beta_w, delta_w, weights = self._weights(correct_outputs, max_outputs)
             # after computing (and normalizing) `weights`
             # fraction of *lowest* weights to drop
@@ -862,7 +862,7 @@ def main():
         # ----------------------------------------------------
         # ONE-TIME: after warmup + 5, restrict to top-10% alpha per class
         # ----------------------------------------------------
-        if (not selected_top_subset) and (epoch == args.warmup_epochs + 2) and args.use_lilaw:
+        if (not selected_top_subset) and (epoch == args.warmup_epochs + 10) and args.use_lilaw:
             print("[INFO] Selecting top 10% high-alpha samples per class...")
 
             # Make the dataset return indices
@@ -901,7 +901,7 @@ def main():
                 idx_c = np.where(labels_all == c)[0]
                 if len(idx_c) == 0:
                     continue
-                k = max(1, int(math.floor(0.40 * len(idx_c))))
+                k = max(1, int(math.floor(1.0 * len(idx_c))))
                 # sort in descending order of alpha
                 sorted_c = idx_c[np.argsort(-alpha_scores[idx_c])]
                 selected_indices.append(sorted_c[:k])
@@ -1036,7 +1036,7 @@ def main():
             model.eval()
 
             # META-VALIDATION STEP (update LiLAW scalars per train batch)
-            if args.use_lilaw and epoch > args.warmup_epochs and epoch <= args.warmup_epochs + 2 and i == 0:
+            if args.use_lilaw and epoch > args.warmup_epochs and epoch <= args.warmup_epochs + 10 and i == 0:
                 #meta_images, meta_labels = next(meta_iter)
                 for meta_images, meta_labels in val_loader:
                     meta_images = meta_images.to(device, non_blocking=True)
