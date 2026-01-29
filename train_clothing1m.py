@@ -1003,7 +1003,7 @@ def main():
             beta.grad = None
             delta.grad = None
 
-            model.requires_grad = True
+            #model.requires_grad = True
             counter = 0
             total = 0
             for name, param in model.named_parameters():
@@ -1015,7 +1015,7 @@ def main():
                 #    last = 22
                 #elif 'swin' in model_name:
                 #    last = 21
-                if counter < total - 2:
+                if counter < total - 1:
                     param.requires_grad = False
                 else:
                     param.requires_grad = True
