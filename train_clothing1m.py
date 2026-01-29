@@ -901,7 +901,7 @@ def main():
                 idx_c = np.where(labels_all == c)[0]
                 if len(idx_c) == 0:
                     continue
-                k = max(1, int(math.floor(1.0 * len(idx_c))))
+                k = max(1, int(math.floor(0.9 * len(idx_c))))
                 # sort in descending order of alpha
                 sorted_c = idx_c[np.argsort(-alpha_scores[idx_c])]
                 selected_indices.append(sorted_c[:k])
@@ -1003,25 +1003,9 @@ def main():
             beta.grad = None
             delta.grad = None
 
-            #model.requires_grad = True
-            counter = 0
-            total = 0
-            for name, param in model.named_parameters():
-                total += 1
-            for name, param in model.named_parameters():
-                #if 'vit' in model_name:
-                #    last = 16
-                #elif 'convnext' in model_name:
-                #    last = 22
-                #elif 'swin' in model_name:
-                #    last = 21
-                if counter < total - 1:
-                    param.requires_grad = False
-                else:
-                    param.requires_grad = True
-                counter += 1
-            #for p in model.parameters():
-            #    p.requires_grad = True
+            model.requires_grad = True
+            for p in model.parameters():
+                p.requires_grad = True
             alpha.requires_grad = False
             beta.requires_grad = False
             delta.requires_grad = False
