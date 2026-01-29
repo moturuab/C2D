@@ -1004,8 +1004,24 @@ def main():
             delta.grad = None
 
             model.requires_grad = True
-            for p in model.parameters():
-                p.requires_grad = True
+            counter = 0
+            total = 0
+            for name, param in model.named_parameters():
+                total += 1
+            for name, param in model.named_parameters():
+                #if 'vit' in model_name:
+                #    last = 16
+                #elif 'convnext' in model_name:
+                #    last = 22
+                #elif 'swin' in model_name:
+                #    last = 21
+                if counter < total - 2:
+                    param.requires_grad = False
+                else:
+                    param.requires_grad = True
+                counter += 1
+            #for p in model.parameters():
+            #    p.requires_grad = True
             alpha.requires_grad = False
             beta.requires_grad = False
             delta.requires_grad = False
