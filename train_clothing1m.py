@@ -624,7 +624,7 @@ class WeightedCrossEntropyLoss(nn.Module):
             alpha_w, beta_w, delta_w, weights = self._weights(correct_outputs, max_outputs)
             # after computing (and normalizing) `weights`
             # fraction of *lowest* weights to drop
-            frac = 0.1
+            frac = 0.2
             B = weights.size(0)
             k = int(B * frac)
         
@@ -901,7 +901,7 @@ def main():
                 idx_c = np.where(labels_all == c)[0]
                 if len(idx_c) == 0:
                     continue
-                k = max(1, int(math.floor(0.9 * len(idx_c))))
+                k = max(1, int(math.floor(0.2 * len(idx_c))))
                 # sort in descending order of alpha
                 sorted_c = idx_c[np.argsort(-alpha_scores[idx_c])]
                 selected_indices.append(sorted_c[:k])
