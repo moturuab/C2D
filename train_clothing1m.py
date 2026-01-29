@@ -556,7 +556,7 @@ def build_model(model_name: str, num_classes: int, pretrained: bool = True):
     name = model_name.lower().replace("-", "")
     if name == "resnet50":
         # Prefer timm if available; otherwise fall back to torchvision
-        if not HAS_TIMM:
+        if HAS_TIMM:
             model = timm.create_model("resnet50", pretrained=pretrained, num_classes=num_classes)
             return model
         else:
@@ -573,7 +573,7 @@ def build_model(model_name: str, num_classes: int, pretrained: bool = True):
                 return SimpleCNN(num_classes)
 
     # If another model was explicitly requested:
-    if not HAS_TIMM:
+    if HAS_TIMM:
         return timm.create_model(model_name, pretrained=pretrained, num_classes=num_classes)
     print("[WARN] Requested model not found and timm not available; using SimpleCNN.")
     return SimpleCNN(num_classes)
