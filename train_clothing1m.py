@@ -624,6 +624,7 @@ class WeightedCrossEntropyLoss(nn.Module):
             alpha_w, beta_w, delta_w, weights = self._weights(correct_outputs, max_outputs)
             # after computing (and normalizing) `weights`
             # fraction of *lowest* weights to drop
+            '''
             frac = 0.2
             B = weights.size(0)
             k = int(B * frac)
@@ -638,7 +639,7 @@ class WeightedCrossEntropyLoss(nn.Module):
                 #weights = m(100*weights)
                 per_sample_ce = per_sample_ce[mask]
                 # everything else (correct_outputs, etc.) can be masked too if you log them
-
+            '''
             weighted_loss = weights * per_sample_ce
             return correct_outputs.detach(), max_outputs.detach(), alpha_w.detach(), beta_w.detach(), delta_w.detach(), weights.detach(), weighted_loss.mean()
         else:
@@ -859,6 +860,7 @@ def main():
 
     for epoch in range(1, args.epochs + 1):
 
+        '''
         # ----------------------------------------------------
         # ONE-TIME: after warmup + 5, restrict to top-10% alpha per class
         # ----------------------------------------------------
@@ -928,7 +930,6 @@ def main():
             torch.cuda.empty_cache()
             print("[INFO] Switched training to top-10%-per-class subset.")
 
-            '''
             # --------------------------------------------------------
             # (2) REINITIALIZE MODEL + OPTIMIZER + SCALER HERE
             #     (after using the old model to compute alpha weights)
@@ -968,8 +969,8 @@ def main():
             else:
                 wandb_run = None
                 print("[INFO] wandb not available; proceeding without logging.")
-            '''
-
+            
+        '''
         # ----------------------------------------------------
         # Normal epoch training (now using possibly filtered train_loader)
         # ----------------------------------------------------
