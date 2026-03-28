@@ -980,8 +980,8 @@ def main():
         ep_count = 0
         tbar = tqdm(train_loader, desc=f"Epoch {epoch}/{args.epochs}", dynamic_ncols=True)
 
+        lr = args.lr
         if epoch == 40:
-            lr = args.lr
             lr /= 10
         #if epoch >= 10:
         #    lr /= 10
